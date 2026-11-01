@@ -23,25 +23,35 @@
 
 **주의:** 소유자 본인의 ChatGPT 계정에서 이 도구를 사용할 수 있는지(쓰기 권한 포함)는 플랜과 워크스페이스 정책에 따라 다릅니다. 설치 파일만 실행해서 계정이 연결되지는 않습니다.
 
-## 설치 — 상대방 Windows PC
+## Windows에서 두 명령어로 설치 + 연결
 
-1. 먼저 설치 파일의 출처와 내용을 확인하세요: [INSTALL.cmd](INSTALL.cmd).
-2. 이 파일을 내려받아 **상대방 PC에서 직접** 실행하세요. 본인의 설치 동의, 필요 시 Windows UAC 승인이 필요합니다.
-3. 스크립트가 Node.js **22.12 이상**을 확인하고, 없으면 공식 Node.js LTS를 `winget`으로 설치/업그레이드하도록 제안합니다.
-4. 설치기는 같은 GitHub 저장소의 [local-pc-mcp.cjs](local-pc-mcp.cjs)를 HTTPS로 내려받고 **SHA-256 값을 확인한 후에만** 설치합니다.
-5. 설치 성공 후 표시되는 로컬 MCP 실행 경로를 이용해 상대방 **본인의 ChatGPT 계정**에 연결합니다.
+상대방 본인의 Platform 터널이 생성돼 있어야 하며, 터널에 **Tunnels Read + Use** 권한이 있는 **런타임 API 키**를 준비하세요. **상대방 PC의 Windows 바탕화면**에 `codex_세팅연결.txt` 파일을 만들고 다음처럼 **실제** 값을 입력합니다(한 줄 또는 두 줄 모두 가능).
 
-Windows CMD에서 환경 검사만 하려면 `INSTALL.cmd --dry-run`을 실행하세요. 설치·다운로드·계정 연결 없이 사전 점검만 진행합니다.
-
-### 설치 파일 전송이 안 되면
-
-상대방 PC의 **PowerShell**에서 다음 명령어를 실행할 수 있습니다 (실행 전 저장소의 설치 파일 내용을 확인하세요).
-
-```powershell
-$p = Join-Path $env:TEMP 'ChatGPTLocalPC-Setup.cmd'; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/7a65b37f7a9d0c9698284a5fb4104eb90689923a/INSTALL.cmd' -OutFile $p; & $p
+```text
+TunnelId:tunnel_0123456789abcdef0123456789abcdef,ApiKey:sk-여기에-실제-런타임키
 ```
 
-GitHub에서 다운로드한 CMD를 실행하므로 반드시 내용을 확인해야 합니다. MCP 서버는 설치기에서 **특정 GitHub 커밋과 SHA-256**으로 고정해, `main` 브랜치의 캐시나 변경으로 서버 버전이 어긋나지 않게 했습니다. 향후 버전 업데이트에는 설치기의 커밋 ID와 해시를 함께 변경해야 합니다.
+**1번 — Windows CMD에서 자체 MCP + 공식 OpenAI tunnel-client 설치**
+
+```cmd
+curl.exe -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/0efb2f97c86f7aa27ee3dc071ff9be6641873afa/INSTALL.cmd" -o "%TEMP%\ChatGPTLocalPC-Setup.cmd" && call "%TEMP%\ChatGPTLocalPC-Setup.cmd"
+```
+
+Node.js 22.12+ 여부 확인(없으면 winget으로 공식 Node.js 설치 제안), 자체 MCP의 커밋·SHA-256 확인, 공식 [openai/tunnel-client](https://github.com/openai/tunnel-client) 최신 안정판 Windows ZIP의 GitHub SHA-256 검증·실행 파일 검사까지 수행합니다. 이미 자체 MCP만 설치한 PC에서도 같은 명령으로 터널 클라이언트를 추가할 수 있습니다.
+
+**2번 — 같은 PC/Windows 계정의 CMD에서 TXT 읽기 → init → doctor → run**
+
+```cmd
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\ChatGPTLocalPCBridge\SETUP-TUNNEL.ps1" -FromDesktopConfig
+```
+
+2번 명령이 실제 파일을 읽고 터널 ID와 런타임 키를 적용하며, **doctor 검사가 정상 통과할 때만 run**으로 진행합니다. CMD 창을 닫으면 터널 연결도 끊기므로 켜두세요. **인증 오류나 계정 권한 문제는 자동 해결되지 않습니다.**
+
+그다음 [ChatGPT 사용자 지정 MCP 서버 추가](https://chatgpt.com/plugins) → **연결: Tunnel** → 해당 터널 선택 → **인증: 인증 없음** → **플러그인 만들기 → 설치** → `pc_info` 도구 호출로 상대방 PC 이름이 나오는지 확인합니다.
+
+**보안:** `codex_세팅연결.txt`는 평문 API 키 파일입니다. 채팅이나 GitHub에 올리지 마세요. 설치가 끝나면 파일을 안전하게 보호하거나 삭제하세요. 삭제하면 나중에 재연결할 때 키를 다시 입력해야 합니다. 설명은 [두 명령어 및 오류 대응 상세 가이드](docs/CONNECT_WEB.md)를 보세요.
+
+설치 내용 확인: [INSTALL.cmd](INSTALL.cmd) · [SETUP-TUNNEL.ps1](SETUP-TUNNEL.ps1). `INSTALL.cmd --dry-run`은 설치하지 않고 Node 및 기존 파일을 점검합니다.
 
 ## ChatGPT 계정 연결
 
@@ -49,7 +59,7 @@ GitHub에서 다운로드한 CMD를 실행하므로 반드시 내용을 확인�
 
 **ChatGPT 웹**: 로컬 stdio 서버에 웹에서 직접 접속할 수 없으므로 **OpenAI Secure MCP Tunnel**이 별도로 필요합니다. **정확한 순서는 MCP 설치 → Platform 터널 생성 및 ChatGPT 워크스페이스 연결 → Windows `tunnel-client` 실행 → ChatGPT 사용자 지정 MCP 서버에서 연결 방식 `Tunnel` 및 인증 `인증 없음` → 플러그인 만들기 → 플러그인 설치 → `pc_info` 실제 호출**입니다. 이 자체 서버는 OAuth를 구현하지 않았으므로 OAuth Client ID/Secret을 입력할 필요가 없습니다. 이미 플러그인 만들기를 눌렀다면 새로 설치하지 말고 [웹 연결 절차의 복구 안내](docs/CONNECT_WEB.md#이미-플러그인으로-만들기를-눌렀다면)를 확인하세요.
 
-**중요:** 설치기는 ChatGPT 로그인·터널 생성·OAuth/역할 승인까지 자동 처리하지 않습니다. 네트워크 공개 RDP 포트(3389), 백그라운드 자동 시작을 설정하지 않습니다.
+**중요:** 설치기는 자체 MCP와 OpenAI 공식 터널 클라이언트 파일까지만 자동 설치합니다. ChatGPT 로그인·Platform 터널 생성·워크스페이스 권한·플러그인 생성/설치는 자동 처리하지 않습니다. 네트워크 공개 RDP 포트(3389), 백그라운드 자동 시작을 설정하지 않습니다.
 
 ## 검증과 보안
 
