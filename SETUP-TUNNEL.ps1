@@ -2,7 +2,7 @@
 # Local PC Bridge: install official openai/tunnel-client for Windows.
 # No Desktop Commander package and no stored runtime API key.
 [CmdletBinding()]
-param([switch]$InstallOnly,[switch]$RunOnly,[switch]$DryRun,[switch]$FromDesktopConfig,[switch]$ValidateConfigOnly,[string]$ConfigPath,[string]$TunnelId)
+param([switch]$InstallOnly,[switch]$RunOnly,[switch]$DryRun,[switch]$FromDesktopConfig,[switch]$ValidateConfigOnly,[switch]$ConfigureOnly,[string]$ConfigPath,[string]$TunnelId)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $homeDir = Join-Path $env:LOCALAPPDATA 'ChatGPTLocalPCBridge'
@@ -15,7 +15,8 @@ $apiFromConfig = $null
 function ReadDesktopConfig {
     if ([string]::IsNullOrWhiteSpace($script:ConfigPath)) {
         $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
-        $script:ConfigPath = Join-Path $desktop 'codex_세팅연결.txt'
+        $desktopName = 'codex_' + [char]0xC138 + [char]0xD305 + [char]0xC5F0 + [char]0xACB0 + '.txt'
+        $script:ConfigPath = Join-Path $desktop $desktopName
     }
     Ensure (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) ('Desktop config file not found: ' + $script:ConfigPath)
     $file = Get-Item -LiteralPath $script:ConfigPath -ErrorAction Stop
@@ -111,6 +112,7 @@ if (-not $RunOnly) {
     & $clientFile init --force --sample sample_mcp_stdio_local --profile $profileName --tunnel-id $TunnelId --mcp-command $cmd
     Ensure ($LASTEXITCODE -eq 0) 'tunnel-client init failed.'
     Info 'Tunnel profile configured.'
+    if ($ConfigureOnly) { Info 'Configuration test mode: skipped live authentication and connection.'; exit 0 }
 }
 if ($FromDesktopConfig) {
     $env:CONTROL_PLANE_API_KEY = $apiFromConfig
@@ -133,7 +135,7 @@ try {
     Ensure ($LASTEXITCODE -eq 0) 'Doctor failed: check ID, runtime key and Platform permission.'
     Info 'Doctor passed. Keep this window open to keep ChatGPT connected.'
     if ($FromDesktopConfig) {
-        Write-Warning 'codex_세팅연결.txt contains a PLAINTEXT API KEY. Protect or remove the file. Restart through START-TUNNEL.cmd reads it again.'
+        Write-Warning 'The Desktop TXT contains a PLAINTEXT API KEY. Protect/remove it; restart through START-TUNNEL.cmd needs the config again.'
     }
     Info 'Next: ChatGPT Plugins > Custom MCP server > Tunnel > Authentication None.'
     & $clientFile run --profile $profileName
