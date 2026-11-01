@@ -48,12 +48,13 @@ if ($ValidateConfigOnly) { Info 'Config format valid; no connection attempted.';
 if ($DryRun) {
     Info ('Local MCP found: ' + (Test-Path -LiteralPath $mcpFile))
     Info ('Official client found: ' + (Test-Path -LiteralPath $clientFile))
+    Info ('Cloudflared found: ' + (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared.exe')))
     exit 0
 }
 Ensure ($env:OS -eq 'Windows_NT') 'Requires Windows.'
 Ensure (-not ($InstallOnly -and $RunOnly)) 'Conflicting switches.'
 Ensure (Test-Path -LiteralPath $mcpFile) 'Install the local MCP with INSTALL.cmd first.'
-if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFile))) {
+if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFile) -or -not (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared.exe')))) {
     $headers = @{'Accept'='application/vnd.github+json';'User-Agent'='chatgpt-local-pc-bridge-installer'}
     $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/openai/tunnel-client/releases/latest' -Headers $headers
     Ensure (-not $release.draft -and -not $release.prerelease) 'Unstable release refused.'
@@ -85,7 +86,16 @@ if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFil
         Ensure ($binary.Count -eq 1) 'Official ZIP did not contain exactly one tunnel-client.exe.'
         & $binary[0].FullName --version
         Ensure ($LASTEXITCODE -eq 0) 'Official executable version check failed.'
+        # The official Windows ZIP also ships cloudflared and its manifest.
+        # tunnel-client expects the companion binary alongside itself during runtime.
+        $cloud = @(Get-ChildItem -LiteralPath $extract -File -Recurse -Filter 'cloudflared.exe')
+        $manifest = @(Get-ChildItem -LiteralPath $extract -File -Recurse -Filter 'cloudflared-manifest.json')
+        Ensure ($cloud.Count -eq 1) 'Official ZIP missing cloudflared.exe.'
+        Ensure ($manifest.Count -eq 1) 'Official ZIP missing cloudflared-manifest.json.'
         Copy-Item -LiteralPath $binary[0].FullName -Destination $clientFile -Force
+        Copy-Item -LiteralPath $cloud[0].FullName -Destination (Join-Path $homeDir 'cloudflared.exe') -Force
+        Copy-Item -LiteralPath $manifest[0].FullName -Destination (Join-Path $homeDir 'cloudflared-manifest.json') -Force
+        Ensure (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared.exe')) 'Cloudflared installation failed.'
     } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     $newline = [Environment]::NewLine
     $launcher = '@echo off' + $newline +
