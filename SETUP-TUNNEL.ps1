@@ -104,8 +104,10 @@ if (-not $RunOnly) {
         exit 0
     }
     Ensure ($TunnelId -match '^tunnel_[A-Za-z0-9_-]{8,}$') 'Invalid Tunnel ID.'
-    $node = (Get-Command node.exe -ErrorAction Stop).Source
-    $cmd = '"' + $node + '" "' + $mcpFile + '"'
+    $null = (Get-Command node.exe -ErrorAction Stop).Source
+    # tunnel-client parses command strings with POSIX-like escaping: Windows backslashes can be lost.
+    # A PATH-resolved node.exe plus quoted forward-slash file path survives the parser on Windows.
+    $cmd = 'node.exe "' + $mcpFile.Replace('\', '/') + '"'
     & $clientFile init --force --sample sample_mcp_stdio_local --profile $profileName --tunnel-id $TunnelId --mcp-command $cmd
     Ensure ($LASTEXITCODE -eq 0) 'tunnel-client init failed.'
     Info 'Tunnel profile configured.'
