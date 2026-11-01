@@ -105,7 +105,20 @@ if (-not $RunOnly -and (-not (Test-Path -LiteralPath $clientFile) -or -not (Test
     Info ('Official tunnel client installed: ' + $clientFile)
     Info ('Later restart: ' + $launcherFile)
 }
-if ($InstallOnly) { Info 'Official tunnel-client bundle is present; existing active tunnel was not touched.';exit 0 }
+if ($InstallOnly) {
+    $newline = [Environment]::NewLine
+    $launcher = '@echo off' + $newline +
+      'if exist "%~dp0runtime-key.dpapi" (' + $newline +
+      '  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0AUTOSTART-TUNNEL.ps1" -Action Run' + $newline +
+      ') else (' + $newline +
+      '  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0SETUP-TUNNEL.ps1" -RunOnly -FromDesktopConfig' + $newline +
+      ')' + $newline +
+      'if errorlevel 1 pause' + $newline
+    [IO.File]::WriteAllText($launcherFile, $launcher, [Text.Encoding]::ASCII)
+    Info 'Official tunnel bundle is present; existing active tunnel was not touched.'
+    Info ('Restart shortcut updated: ' + $launcherFile)
+    exit 0
+}
 Ensure (Test-Path -LiteralPath $clientFile) 'Official tunnel-client executable missing.'
 $env:LOCAL_PC_ROOT = Join-Path $env:USERPROFILE 'ChatGPTLocalFiles'
 if (-not $RunOnly) {
