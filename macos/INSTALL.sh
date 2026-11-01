@@ -11,14 +11,21 @@ case "$(uname -m)" in
   arm64)
     ARCH="arm64"
     TUNNEL_SHA="2243d024b77af8ee4b4ab7a1447949e5fc8d82bcd2d51b178927f2da9e47ecfd"
+    CLIENT_SHA="4a82a4591933241850966ab3484cb39e65fad11b7e83b43891f6599f9638bd7f"
+    CLOUD_SHA="5eba1c4bb3ab95b652d95c793d5f78f6747552ad2d1b2574b8e0ec33253b2df5"
     ;;
   x86_64)
     ARCH="amd64"
     TUNNEL_SHA="dff97674c77cac59e6ab3d901e6cff50fb17a5784c01d8959d1f4adb3afdf4bf"
+    CLIENT_SHA="dfd9f50aa6846ba76223d4ceb86ab9408b794881b650b000ec0ef6fd2a8b775b"
+    CLOUD_SHA="2f04e7bcd2d81bdeecd4a5ed24bc75302317189bd10478ba4127b3c41d6cbdba"
     ;;
   *) echo "[MAC INSTALL ERROR] Unsupported Mac architecture." >&2; exit 2 ;;
 esac
 fail() { printf '[MAC INSTALL ERROR] %s\n' "$1" >&2; exit 1; }
+OS_VERSION="$(/usr/bin/sw_vers -productVersion 2>/dev/null)" || fail "Cannot detect macOS version."
+MAC_OS_MAJOR="${OS_VERSION%%.*}"
+[[ "$MAC_OS_MAJOR" =~ ^[0-9]+$ && "$MAC_OS_MAJOR" -ge 13 ]] || fail "Requires macOS 13 Ventura or newer. Detected: $OS_VERSION"
 note() { printf '[MAC INSTALL] %s\n' "$1"; }
 if [[ "${1:-}" == "--dry-run" ]]; then
   note "macOS architecture: $ARCH"
@@ -55,23 +62,41 @@ download_checked() {
   [[ "$digest" == "$expected" ]] || fail "SHA-256 checksum mismatch; refusing installation."
 }
 download_checked \
-  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/86929a9a899550ac9f7e9a9b025ffe12bc5a1b79/macos/local-mac-mcp.cjs" \
-  "e66adc3446b74fef77c4e37916d1653565bece60acf17db3d860aadb6c3386cb" \
+  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/0f7a9317da0176ec9d627574f154ae037906da41/macos/local-mac-mcp.cjs" \
+  "bb2043f20d95a4ba2b35fa19c0fa26d45142a2cb6680830a94cfbe6ef7dd9c7f" \
   "$tmp/local-mac-mcp.cjs"
 download_checked \
-  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/9e2baa53bc35859d1cef535a20ee83a31096d3bd/macos/CONNECT.sh" \
-  "48d0b005d39df9c621af1acea7fc7251edd5f8a587fa844924a2005105c518e6" \
+  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/bad34386b6cd53f12f04fb4934c972578549db53/macos/CONNECT.sh" \
+  "5947b65d4e18e0678b8a382cb1cc8d892eb00e163a9937f1caa6dea63f2cef9c" \
   "$tmp/CONNECT.sh"
 download_checked \
-  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/94178fcf9331643bfcc20ae949070e840d1dccb1/macos/AUTOSTART.sh" \
-  "ed296642d8c5b525faf26fc15565c535790035de38aba59298de1ccc6e77c38a" \
+  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/9fd5ed7656be107b42517fd4a3af7b937785affd/macos/AUTOSTART.sh" \
+  "14876944e741f1465abe72cb341fa851161f232ff8dc9991de4a0b4c62cd589c" \
   "$tmp/AUTOSTART.sh"
+download_checked \
+  "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/aa0786a5bed1ec47b85455f32c6bd5723fbaa2a2/macos/CONFIG.sh" \
+  "22b80fdbfa9b7545fd8d860d877fcbdc5c1f978db09b2a525f28d1ff2243d5bc" \
+  "$tmp/CONFIG.sh"
 node --check "$tmp/local-mac-mcp.cjs" || fail "MCP JS syntax check failed."
-/bin/bash -n "$tmp/CONNECT.sh" "$tmp/AUTOSTART.sh" || fail "Shell script syntax check failed."
+for script in CONNECT.sh AUTOSTART.sh CONFIG.sh; do
+  /bin/bash -n "$tmp/$script" || fail "Syntax check failed: $script"
+done
 install -m 600 "$tmp/local-mac-mcp.cjs" "$APP_DIR/local-mac-mcp.cjs"
 install -m 700 "$tmp/CONNECT.sh" "$APP_DIR/CONNECT.sh"
 install -m 700 "$tmp/AUTOSTART.sh" "$APP_DIR/AUTOSTART.sh"
-if [[ ! -x "$BIN_DIR/tunnel-client" || ! -x "$BIN_DIR/cloudflared" || ! -f "$BIN_DIR/cloudflared-manifest.json" ]]; then
+install -m 600 "$tmp/CONFIG.sh" "$APP_DIR/CONFIG.sh"
+MANIFEST_SHA="04073cfbf4d2603f0054f80a4bef0aa5c07ca059fbe013ee4cbb35667a215164"
+bundle_matches() {
+  [[ -x "$BIN_DIR/tunnel-client" && -x "$BIN_DIR/cloudflared" && -f "$BIN_DIR/cloudflared-manifest.json" ]] || return 1
+  [[ "$(shasum -a 256 "$BIN_DIR/tunnel-client" | awk '{print $1}')" == "$CLIENT_SHA" &&
+     "$(shasum -a 256 "$BIN_DIR/cloudflared" | awk '{print $1}')" == "$CLOUD_SHA" &&
+     "$(shasum -a 256 "$BIN_DIR/cloudflared-manifest.json" | awk '{print $1}')" == "$MANIFEST_SHA" ]]
+}
+if bundle_matches; then
+  note "Existing Mac bundle has verified official file hashes. No running binaries overwritten."
+elif [[ -e "$BIN_DIR/tunnel-client" || -e "$BIN_DIR/cloudflared" || -e "$BIN_DIR/cloudflared-manifest.json" ]]; then
+  fail "Existing Mac bundle is incomplete or does not match official SHA-256. Stop the Mac tunnel, back up/remove only the three files under the Mac app bin folder, then rerun. Refusing unsafe overwrite."
+else
   file="tunnel-client-$RELEASE-darwin-$ARCH.zip"
   note "Downloading official OpenAI macOS tunnel bundle: $RELEASE ($ARCH)."
   download_checked \
@@ -84,8 +109,6 @@ if [[ ! -x "$BIN_DIR/tunnel-client" || ! -x "$BIN_DIR/cloudflared" || ! -f "$BIN
   install -m 700 "$tmp/release/tunnel-client" "$BIN_DIR/tunnel-client"
   install -m 700 "$tmp/release/cloudflared" "$BIN_DIR/cloudflared"
   install -m 600 "$tmp/release/cloudflared-manifest.json" "$BIN_DIR/cloudflared-manifest.json"
-else
-  note "Existing complete Mac tunnel bundle found. Not overwriting a potentially running daemon."
 fi
 "$BIN_DIR/tunnel-client" --version || fail "Tunnel binary version check failed."
 note "Mac-only MCP + official macOS tunnel + Keychain/LaunchAgent helper scripts installed."
