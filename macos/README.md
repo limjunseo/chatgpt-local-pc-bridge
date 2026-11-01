@@ -8,9 +8,9 @@
 
 - Mac에는 **Mac용 터널 ID를 별도로 생성**하는 것을 권장한다. **Windows와 Mac에서 같은 Tunnel ID로 stdio MCP 클라이언트 2개를 동시에 돌리는 구성은 지원되지 않는다.** 기존 Windows 연결을 중단하거나 덮어쓰지 않도록 Mac에 별도 터널을 만든다.
 - https://platform.openai.com/settings/organization/tunnels 에서 Mac 전용 터널을 만들고 해당 ChatGPT 워크스페이스에 연결. 런타임 API 키는 https://platform.openai.com/settings/organization/api-keys 에서 Tunnels Read + Use 권한으로 준비.
-- Mac의 Apple Silicon(arm64)과 Intel(x86_64)용 공식 OpenAI ZIP을 각각 SHA-256으로 검증해 설치한다. macOS가 기본 제공하는 `curl`, `shasum`, `unzip` 등 사용.
+- 최소 **macOS 13 Ventura 이상**을 요구한다(공식 v0.0.19 Mac 실행 파일의 최소 OS 확인). Mac의 Apple Silicon(arm64)과 Intel(x86_64)용 공식 OpenAI ZIP을 각각 SHA-256으로 검증해 설치한다. 기존 설치 실행 파일도 SHA-256이 일치할 때만 재사용하며 불일치 시 강제 덮어쓰지 않는다. macOS가 기본 제공하는 `curl`, `shasum`, `unzip` 등 사용.
 - Node.js **22.12+** 필요. Homebrew가 있고 Node가 없으면 설치기가 `brew install node`를 제안하며 실행한다. Homebrew도 없다면 공식 Node 설치(https://nodejs.org/en/download) 후 재실행.
-- 자체 MCP는 기본 `$HOME/ChatGPTLocalFiles` 안에서만 읽기·쓰기 가능. **전체 Mac 제어나 임의 셸 실행 기능은 없음**.
+- 자체 MCP는 기본 `$HOME/ChatGPTLocalFiles` 안에서만 읽기·쓰기 가능. 기존 다중 하드링크 파일은 접근 거부하며 텍스트 편집은 유효한 UTF-8·NUL 미포함·최대 2 MiB 결과물만 허용한다. 다만 **OS 수준의 샌드박스가 아니며**, 경로 검사와 파일 접근 사이의 경쟁 상태까지 전부 제거한 것은 아니다. **전체 Mac 제어나 임의 셸 실행 기능은 없음**.
 
 ## 1. Mac 바탕화면 TXT 생성
 
@@ -20,12 +20,12 @@ Mac의 실제 데스크톱에 `codex_세팅연결.txt` 파일 생성. **Mac 전�
 TunnelId:tunnel_여기에Mac전용실제ID,ApiKey:여기에실제런타임API키
 ```
 
-API 키가 평문 파일이므로 GitHub/채팅/공유 폴더에 올리지 말 것. iCloud 데스크톱 동기화도 주의.
+**TextEdit을 사용한다면 포맷 → 일반 텍스트로 전환 후 UTF-8로 저장**할 것. 한 줄 마지막 줄바꿈은 없어도 되며 UTF-8 BOM·콜론 뒤 공백·CRLF는 처리한다. **UTF-16과 RTF는 미지원**. API 키가 평문 파일이므로 GitHub/채팅/공유 폴더에 올리지 말 것. iCloud 데스크톱 동기화도 주의.
 
 ## 2. Mac 터미널 명령어 1 — 설치
 
 ```bash
-curl -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/89ef35eabd89073d886d77aac49002ac9fa8a56e/macos/INSTALL.sh" -o "$HOME/Downloads/ChatGPTLocalMac-INSTALL.sh" && bash "$HOME/Downloads/ChatGPTLocalMac-INSTALL.sh"
+curl -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/19a20997bee5efd93da9bc02728f0351a622a98a/macos/INSTALL.sh" -o "$HOME/Downloads/ChatGPTLocalMac-INSTALL.sh" && bash "$HOME/Downloads/ChatGPTLocalMac-INSTALL.sh"
 ```
 
 PC 소유자 설치 동의 `y`를 입력. 설치 경로:
@@ -35,6 +35,7 @@ PC 소유자 설치 동의 `y`를 입력. 설치 경로:
 - `$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/bin/cloudflared`
 - `$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/CONNECT.sh`
 - `$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/AUTOSTART.sh`
+- `$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/CONFIG.sh` (공통 TXT 파서)
 
 **Mac 설치기는 Windows의 파일·서비스·터널 설정을 건드리지 않는다.** 첫 명령만으로 자동 실행을 등록하지 않는다.
 
@@ -46,7 +47,9 @@ bash "$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/CONNECT.sh"
 
 자동 작업: 바탕화면 TXT 읽기 → Mac 전용 stdio MCP 프로필 `chatgpt-local-mac` 초기화 → `doctor --explain` → `run`. **doctor 오류가 있다면 연결이 시작되지 않는다.**
 
-doctor가 성공하면 **로그인 자동 실행 등록 여부**를 묻는다. 원하는 경우 `y`. 이후 추가 동의 질문에서 평문 TXT를 삭제하려면 `y`. 실제 키는 **Mac 로그인 키체인(Keychain)**에 저장되며, 명령행 인자나 로그에 출력하지 않도록 구성했다. 키체인의 접근 권한 승인 팝업이 나올 수 있다.
+doctor가 성공하면 **로그인 자동 실행 등록 여부**를 묻는다. 원하는 경우 `y`. 이후 추가 동의 질문에서 평문 TXT를 삭제하려면 `y`. 실제 키는 **Mac 로그인 키체인(Keychain)**에 저장되며, 명령행 인자나 로그에 출력하지 않도록 구성했다. 키체인의 접근 권한 승인 팝업이 나올 수 있다. 자동 실행 등록 질문에서 취소해도 **수동 연결은 계속 진행**한다.
+
+**평문 TXT를 삭제한 다음 다시 수동 연결할 때에도 위 두 번째 명령을 사용할 수 있다.** 기존 Mac 프로필/키체인이 있으면 이를 이용해 실행한다. 기존 macOS LaunchAgent 터널이 이미 실행 중이라면 중복 실행을 피하도록 상태를 확인한다. 키체인 항목이 사라졌다면 본인 런타임 키로 TXT를 다시 작성해야 한다.
 
 **현재 터널을 수동 실행하는 터미널은 닫지 말 것.** 해당 Mac 터널을 다른 Mac 또는 Windows에서 동일 ID로 중복 실행하지 말 것.
 
@@ -83,6 +86,7 @@ bash "$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/AUTOSTART.sh" di
 - macOS 고유 구현: `macos/local-mac-mcp.cjs` (프로세스 조회 시 읽기 전용 `/bin/ps`, 파일 작업 범위 제한).
 - Keychain 비밀번호 쓰기는 `/usr/bin/security -i`의 표준 입력으로 처리해 **OS 프로세스 인자에 비밀 값을 넣지 않도록** 설계. 실제 Mac 키체인의 액세스 정책/사용자 승인 과정은 실기기에서 반드시 확인해야 한다.
 - Mac 자동 실행은 `~/Library/LaunchAgents/com.limjunseo.chatgpt-local-mac-bridge.tunnel.plist` 하나만 생성하며, `KeepAlive=false`: 실패 시 계속 자동 재시작하지 않는다. **사용자가 명시적으로 동의한 경우에만** 등록된다.
+- 공식 설치기 리커버리: 완비된 기존 터널 바이너리 해시가 다르면 **설치가 중단된다**. Mac 터널을 종료한 다음 `$HOME/Library/Application Support/ChatGPTLocalPCBridgeMac/bin/`의 관련 3개 실행/매니페스트 파일만 안전하게 백업·제거하고 설치를 다시 수행한다. 다른 경로, 특히 Windows 파일은 변경하지 않는다.
 - Mac OS 버전, Apple Silicon/Intel, 키체인 접근 권한, LaunchAgent GUI 세션에 따라 결과가 달라질 수 있다. 완전한 성공 판정은 실제 Mac 설치·doctor·run·ChatGPT `pc_info`·재로그인 재테스트까지다.
 
 ## 7. Windows 원본과 차이
