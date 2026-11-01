@@ -53,7 +53,7 @@ if ($DryRun) {
 Ensure ($env:OS -eq 'Windows_NT') 'Requires Windows.'
 Ensure (-not ($InstallOnly -and $RunOnly)) 'Conflicting switches.'
 Ensure (Test-Path -LiteralPath $mcpFile) 'Install the local MCP with INSTALL.cmd first.'
-if (-not $RunOnly) {
+if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFile))) {
     $headers = @{'Accept'='application/vnd.github+json';'User-Agent'='chatgpt-local-pc-bridge-installer'}
     $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/openai/tunnel-client/releases/latest' -Headers $headers
     Ensure (-not $release.draft -and -not $release.prerelease) 'Unstable release refused.'
