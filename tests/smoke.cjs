@@ -32,7 +32,7 @@ const call=(name,args={})=>request('tools/call',{name,arguments:args});
     const init=await request('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'smoke',version:'1'}});
     assert.equal(init.result.serverInfo.name,'chatgpt-local-pc-bridge');
     const list=await request('tools/list');
-    assert.ok(list.result.tools.length >= 11, 'Expected expanded filesystem and diagnostics tools');
+    assert.deepEqual(list.result.tools.map(t=>t.name).sort(),["create_directory","edit_text_file","file_info","list_directory","list_processes","move_file","pc_info","read_binary_file","read_text_file","search_files","write_text_file"]);
     const info=await call('pc_info');
     assert.ok(info.result.content[0].text.includes('workspace'));
     const listing=await call('list_directory',{path:'.'});
