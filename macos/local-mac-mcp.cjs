@@ -6,6 +6,8 @@ const path = require('node:path');
 const os = require('node:os');
 const readline = require('node:readline');
 const childProcess = require('node:child_process');
+const { TextDecoder } = require('node:util');
+const strictUtf8 = new TextDecoder('utf-8', {fatal:true});
 
 let localSettings={};
 try { localSettings=JSON.parse(fs.readFileSync(path.join(__dirname,'local-pc-config.json'),'utf8')); } catch {}
@@ -40,6 +42,8 @@ function safePath(input) {
     try {
       const item = fs.lstatSync(current);
       if (item.isSymbolicLink()) throw new Error('Symbolic links are not allowed');
+      // A pre-existing hard link in the workspace may refer to an inode also named outside it.
+      if (item.isFile() && item.nlink > 1) throw new Error('Files with multiple hard links are not allowed');
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
     }
@@ -47,14 +51,22 @@ function safePath(input) {
   return absolute;
 }
 const pathSchema = {type:'string', description:'Absolute path or path relative to the authorized workspace'};
+function utf8Text(buffer) {
+  if (buffer.includes(0)) throw Error('Binary files containing NUL are not editable as text');
+  try { return strictUtf8.decode(buffer); }
+  catch { throw Error('File is not valid UTF-8; no changes made'); }
+}
 function editTextFile(args) {
   const file = safePath(args.path);
   if (!args.find || typeof args.find !== 'string' || typeof args.replace !== 'string') throw Error('find and replace must be strings');
-  const contents = fs.readFileSync(file, 'utf8');
-  if (Buffer.byteLength(contents) > MAX_BINARY_BYTES) throw Error('File exceeds edit limit');
+  if (args.find.includes('\0') || args.replace.includes('\0')) throw Error('NUL is not supported in text edits');
+  const stat = fs.statSync(file);
+  if (!stat.isFile() || stat.size > MAX_BINARY_BYTES) throw Error('Not a regular text file or file exceeds edit limit');
+  const contents = utf8Text(fs.readFileSync(file));
   const count = contents.split(args.find).length - 1;
   if (count !== (args.expectedMatches ?? 1)) throw Error('Expected exact match count; found ' + count + '. No changes made.');
   const changed = contents.split(args.find).join(args.replace);
+  if (Buffer.byteLength(changed, 'utf8') > MAX_BINARY_BYTES) throw Error('Edited file exceeds 2 MiB limit; no changes made');
   fs.writeFileSync(file, changed, 'utf8');
   return {path:file,replacements:count,changed:true};
 }
@@ -63,23 +75,28 @@ function searchFiles(args) {
   const needle = args.pattern;
   if (typeof needle !== 'string' || needle.length === 0 || needle.length > 250) throw Error('Invalid search pattern');
   const found = [], queue = [start]; let visited = 0, directories = 0;
+  let skippedOversize = 0, skippedUnreadable = 0, skippedHardlinks = 0, skippedSymlinks = 0;
   while (queue.length && visited + directories < MAX_SEARCH_VISITS && found.length < MAX_SEARCH_RESULTS) {
     const p = queue.shift();
-    let st; try { st = fs.lstatSync(p); } catch { continue; }
-    if (st.isSymbolicLink()) continue;
+    let st; try { st = fs.lstatSync(p); } catch { skippedUnreadable++;continue; }
+    if (st.isSymbolicLink()) {skippedSymlinks++;continue;}
     if (st.isDirectory()) {
       directories++;
-      try { for (const name of fs.readdirSync(p)) queue.push(path.join(p,name)); } catch {}
+      try { for (const name of fs.readdirSync(p)) queue.push(path.join(p,name)); }
+      catch { skippedUnreadable++; }
     } else if (st.isFile()) {
+      if (st.nlink > 1) { skippedHardlinks++;continue; }
       visited++;
       if (args.searchContent === true) {
-        if (st.size <= 256 * 1024) {
-          try { if (fs.readFileSync(p,'utf8').toLowerCase().includes(needle.toLowerCase())) found.push(p); } catch {}
-        }
+        if (st.size > MAX_READ_BYTES) { skippedOversize++;continue; }
+        try { if (utf8Text(fs.readFileSync(p)).toLowerCase().includes(needle.toLowerCase())) found.push(p); }
+        catch { skippedUnreadable++; }
       } else if (path.basename(p).toLowerCase().includes(needle.toLowerCase())) found.push(p);
     }
   }
-  return {root:start,filesVisited:visited,results:found,limited:queue.length>0};
+  return {root:start,filesVisited:visited,results:found,
+    limited:queue.length>0 || skippedOversize>0 || skippedUnreadable>0 || skippedHardlinks>0 || skippedSymlinks>0,
+    skippedOversize,skippedUnreadable,skippedHardlinks,skippedSymlinks};
 }
 function listMacProcesses() {
   if (process.platform !== 'darwin') return {note:'macOS-only process list',platform:process.platform,pid:process.pid};
@@ -123,13 +140,12 @@ function callTool(name, args) {
       if (!stat.isFile()) throw new Error('Not a file');
       if (stat.size > MAX_READ_BYTES) throw new Error('File exceeds read limit');
       const buffer = fs.readFileSync(file);
-      if (buffer.includes(0)) throw new Error('Binary files not supported');
-      output = {path:path.relative(root,file),content:buffer.toString('utf8')};
+      output = {path:path.relative(root,file),content:utf8Text(buffer)};
       break;
     }
     case 'write_text_file': {
       const file = safePath(args.path);
-      if (typeof args.content !== 'string') throw new Error('content must be a string');
+      if (typeof args.content !== 'string' || args.content.includes('\0')) throw new Error('content must be text without NUL');
       const count = Buffer.byteLength(args.content,'utf8');
       if (count > MAX_WRITE_BYTES) throw new Error('Content exceeds write limit');
       if (!fs.statSync(path.dirname(file)).isDirectory()) throw new Error('Parent directory missing');
