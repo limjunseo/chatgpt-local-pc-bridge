@@ -7,7 +7,7 @@ set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
 set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
 set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
 set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/main/local-pc-mcp.cjs"
-set "EXPECTED_SHA256=5A13141F7615CC7C49659BC2BE70B149DFD7735EFF218ED9BAF661A676A313F7"
+set "EXPECTED_SHA256=AA12784686A972BE1B16B9C5B08AB9BB59C4992442B966D216BEDC4470068571"
 if not "%~2"=="" goto BAD_ARGUMENT
 if /I "%~1"=="--help" goto HELP
 if /I "%~1"=="--dry-run" goto DRY_RUN
@@ -19,8 +19,8 @@ echo ======================================================
 echo.
 echo No third-party MCP provider or npm packages are used.
 echo Installs our own small local stdio MCP tool, Node.js only.
-echo Tools: hostname, list, read and write text files.
-echo Restricted to: %WORK_ROOT%
+echo Tools: file info, search, exact edits, read/write, and process listing.
+echo File access restricted to: %WORK_ROOT%
 echo No arbitrary command execution, open ports, or auto-start.
 echo Installation does not authorize any ChatGPT account.
 echo.
