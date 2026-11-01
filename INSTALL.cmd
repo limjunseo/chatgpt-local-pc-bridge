@@ -6,8 +6,11 @@ rem Requires owner approval. Does not connect accounts or enable persistence.
 set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
 set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
 set "TUNNEL_SETUP=%BRIDGE_HOME%\SETUP-TUNNEL.ps1"
-set "TUNNEL_SETUP_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/4ab0a7e22f8a0892eed22c273ecf9e29b9ece139/SETUP-TUNNEL.ps1"
-set "EXPECTED_TUNNEL_SHA256=6DD28095BA7F0E51D649BF83EC4FDE8A11317AFF7781A1414651AD0D3FF1CA3C"
+set "AUTOSTART_SCRIPT=%BRIDGE_HOME%\AUTOSTART-TUNNEL.ps1"
+set "AUTOSTART_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/24960809c8c703a003895339ef1b4961c3e6d5d0/AUTOSTART-TUNNEL.ps1"
+set "EXPECTED_AUTOSTART_SHA256=7DCFCB1DD3293BE50033BCC37D36A9419D67C5530FACDF3A85F13050F7B87909"
+set "TUNNEL_SETUP_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/1f3d416888cc1076dc1361639d636e0c309aa9a2/SETUP-TUNNEL.ps1"
+set "EXPECTED_TUNNEL_SHA256=E15CCC7BF51DC464D9B6722D9EDD900B57861EB404F8A802C8C3186AE1FB85B7"
 set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
 set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/360eccfce6ebc6d6afbbe031d125f13cb7250e84/local-pc-mcp.cjs"
 set "EXPECTED_SHA256=29DF03940A61E692953464070CF1F4EC059FDEEFCA369AD49C58603D6B5FB0C2"
@@ -83,6 +86,19 @@ if /I not "%CURRENT_HASH%"=="%EXPECTED_TUNNEL_SHA256%" goto HASH_FAILED
 move /Y "%TEMPFILE%" "%TUNNEL_SETUP%" >nul
 if errorlevel 1 goto FOLDER_FAILED
 :TUNNEL_SETUP_VERIFIED
+set "CURRENT_HASH="
+if exist "%AUTOSTART_SCRIPT%" call :HASH_FILE "%AUTOSTART_SCRIPT%"
+if /I "%CURRENT_HASH%"=="%EXPECTED_AUTOSTART_SHA256%" goto AUTOSTART_VERIFIED
+echo Downloading reviewed opt-in login autostart script from our GitHub...
+set "TEMPFILE=%BRIDGE_HOME%\AUTOSTART-TUNNEL.ps1.download"
+powershell.exe -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing -Uri '%AUTOSTART_URL%' -OutFile '%TEMPFILE%' -ErrorAction Stop; exit 0 } catch { exit 1 }"
+if errorlevel 1 goto DOWNLOAD_FAILED
+set "CURRENT_HASH="
+call :HASH_FILE "%TEMPFILE%"
+if /I not "%CURRENT_HASH%"=="%EXPECTED_AUTOSTART_SHA256%" goto HASH_FAILED
+move /Y "%TEMPFILE%" "%AUTOSTART_SCRIPT%" >nul
+if errorlevel 1 goto FOLDER_FAILED
+:AUTOSTART_VERIFIED
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%TUNNEL_SETUP%" -InstallOnly
 if errorlevel 1 goto TUNNEL_INSTALL_FAILED
 echo.
@@ -108,7 +124,13 @@ echo.
 echo Documentation:
 echo https://github.com/limjunseo/chatgpt-local-pc-bridge
 echo.
-echo Press any key to finish. No service is running automatically.
+echo Optional: after a successful doctor check, approve Windows
+echo login auto-start. Credential is encrypted with Windows user DPAPI.
+echo For already connected PCs, enable via:
+echo powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AUTOSTART_SCRIPT%" -Action Enable
+echo Login auto-start is not enabled by installation without consent.
+echo.
+echo Press any key to finish.
 pause >nul
 exit /b 0
 :DRY_RUN
@@ -117,6 +139,7 @@ call :CHECK_NODE
 if errorlevel 1 (echo [FAIL] Node.js 22.12+ required&exit /b 2)
 if exist "%BRIDGE_SCRIPT%" (echo [INFO] Bridge file already present) else (echo [INFO] Bridge not installed)
 if exist "%TUNNEL_SETUP%" (echo [INFO] Tunnel setup script present) else (echo [INFO] Tunnel setup script missing)
+if exist "%AUTOSTART_SCRIPT%" (echo [INFO] Login autostart script present) else (echo [INFO] Login autostart script missing)
 if exist "%BRIDGE_HOME%\tunnel-client.exe" (echo [INFO] Tunnel client installed) else (echo [INFO] Tunnel client not installed)
 where winget.exe >nul 2>&1
 if errorlevel 1 (echo [INFO] winget unavailable) else (echo [PASS] winget available)
@@ -191,4 +214,5 @@ echo ChatGPT Local PC Bridge - own stdio MCP, no Desktop Commander
 echo No args: install Node LTS if needed, hash-pinned local MCP and official OpenAI tunnel-client.
 echo --dry-run: no changes. --help: display help.
 echo Step 2: powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%%LOCALAPPDATA%%\ChatGPTLocalPCBridge\SETUP-TUNNEL.ps1" -FromDesktopConfig
+echo After doctor success, PC owner can opt in to login auto-start.
 exit /b 0
