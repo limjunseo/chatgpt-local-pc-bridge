@@ -20,20 +20,13 @@ xml_escape() {
   sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&apos;/g"
 }
 read_txt() {
-  [[ -f "$CONFIG" && "$(wc -c < "$CONFIG")" -le 8192 ]] || fail "Desktop credential TXT missing or too large."
-  ID=''; KEY=''
-  while IFS= read -r field; do
-    field="${field#"${field%%[![:space:]]*}"}"
-    field="${field%"${field##*[![:space:]]}"}"
-    [[ -z "$field" ]] && continue
-    case "$field" in
-      TunnelId:*) [[ -z "$ID" ]] || fail "Duplicate TunnelId"; ID="${field#TunnelId:}" ;;
-      ApiKey:*) [[ -z "$KEY" ]] || fail "Duplicate ApiKey"; KEY="${field#ApiKey:}" ;;
-      *) fail "Invalid TXT format. Key not printed." ;;
-    esac
-  done < <(tr '\r\n,' '\n\n\n' < "$CONFIG")
-  [[ "$ID" =~ ^tunnel_[A-Za-z0-9_-]{8,}$ ]] || fail "Invalid Tunnel ID."
-  [[ "${#KEY}" -ge 12 && "${#KEY}" -le 512 && "$KEY" =~ ^[A-Za-z0-9._-]+$ ]] || fail "Invalid API key (not displayed)."
+  [[ -f "$APP_DIR/CONFIG.sh" ]] || fail "Shared config parser missing. Reinstall updated Mac bundle."
+  # shellcheck source=CONFIG.sh
+  source "$APP_DIR/CONFIG.sh"
+  bridge_read_desktop_config "$CONFIG" || fail "Credential TXT format invalid."
+  ID="$BRIDGE_TUNNEL_ID"
+  KEY="$BRIDGE_RUNTIME_KEY"
+  unset BRIDGE_RUNTIME_KEY
 }
 case "$ACTION" in
   status)
@@ -66,30 +59,32 @@ case "$ACTION" in
     runner="$APP_DIR/AUTOSTART.sh"
     log="$APP_DIR/logs/launchd.out.log"
     err="$APP_DIR/logs/launchd.err.log"
-    { cat <<'XML'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>Label</key><string>com.limjunseo.chatgpt-local-mac-bridge.tunnel</string>
-<key>ProgramArguments</key><array><string>/bin/bash</string><string>
-XML
+    # IMPORTANT: paths must begin immediately after <string>; a newline here breaks launchd.
+    {
+      printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+      printf '%s\n' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+      printf '%s\n' '<plist version="1.0"><dict>'
+      printf '%s\n' '<key>Label</key><string>com.limjunseo.chatgpt-local-mac-bridge.tunnel</string>'
+      printf '%s' '<key>ProgramArguments</key><array><string>/bin/bash</string><string>'
       printf '%s' "$runner" | xml_escape
-      cat <<'XML'
-</string><string>run</string></array>
-<key>RunAtLoad</key><true/>
-<key>KeepAlive</key><false/>
-<key>StandardOutPath</key><string>
-XML
+      printf '%s\n' '</string><string>run</string></array>'
+      printf '%s\n' '<key>RunAtLoad</key><true/>'
+      printf '%s\n' '<key>KeepAlive</key><false/>'
+      printf '%s' '<key>StandardOutPath</key><string>'
       printf '%s' "$log" | xml_escape
-      printf '</string>\n<key>StandardErrorPath</key><string>'
+      printf '%s\n' '</string>'
+      printf '%s' '<key>StandardErrorPath</key><string>'
       printf '%s' "$err" | xml_escape
-      cat <<'XML'
-</string>
-</dict></plist>
-XML
+      printf '%s\n' '</string>'
+      printf '%s\n' '</dict></plist>'
     } > "$PLIST"
     chmod 600 "$PLIST"
     /usr/bin/plutil -lint -s "$PLIST" || fail "LaunchAgent plist validation failed."
+    [[ -x /usr/libexec/PlistBuddy ]] || fail "PlistBuddy unavailable for field validation."
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$PLIST")" = "$runner" &&
+       "$(/usr/libexec/PlistBuddy -c 'Print :StandardOutPath' "$PLIST")" = "$log" &&
+       "$(/usr/libexec/PlistBuddy -c 'Print :StandardErrorPath' "$PLIST")" = "$err" ]] ||
+       fail "Generated LaunchAgent paths differ from expected values; refusing to claim setup succeeded."
     note "Login auto-start registered for NEXT login; current manual tunnel left running."
     note "Agent is user-visible in ~/Library/LaunchAgents, with logs under the Mac app folder."
     printf 'Remove plaintext Desktop TXT now? Recommended [y/N]: '
