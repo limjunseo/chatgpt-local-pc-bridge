@@ -10,6 +10,18 @@
 - **임의 CMD/PowerShell 명령, 프로그램 설치, 프로세스 종료, PC 전체 파일 접근은 미지원**
 - ChatGPT 웹 사용 시 **별도 OpenAI Secure MCP Tunnel 및 대상 사용자 계정의 권한/인증 필요**
 
+## 검증된 Windows 2단계 설치 (2026-11-01)
+
+- 1단계 CMD 설치 파일은 GitHub **고정 커밋** `0efb2f97c86f7aa27ee3dc071ff9be6641873afa`에서 받아 **CRLF 줄바꿈** 확인 후 실행함. `--dry-run`, `--help` 종료 코드 0.
+- 별도 Windows TEMP 환경변수로 분리해 1단계 실제 설치 성공(종료 코드 0). 자체 MCP 소스, `SETUP-TUNNEL.ps1`, `tunnel-client.exe`, `START-TUNNEL.cmd` 설치 확인.
+- 공식 `openai/tunnel-client` 릴리스 v0.0.19 Windows AMD64 ZIP 다운로드 및 GitHub 릴리스 `digest` SHA-256 확인, `tunnel-client.exe --version` 실행 성공.
+- 2단계 PowerShell 설치 스크립트는 GitHub **고정 커밋** `dc03acfb3497a3f6b4e706e8e2b4058c38261b21`, 다운로드 SHA-256 `7A3FE17D63EEB2575FBE5BED8A513FB0740539FE20B25A4ED54982BF7C7D5B57` 검증.
+- 가짜(실제 API가 아닌) Tunnel ID·키를 가진 테스트 TXT로 **파일 파싱, MCP 명령 사전검사, 터널 프로필 생성** 성공(종료 코드 0). 실제 키로 외부 Platform 인증은 시도하지 않음.
+- Windows 경로의 역슬래시·공백 때문에 `tunnel-client init`가 실패하는 문제를 발견하고, `node.exe` + 따옴표로 감싼 슬래시 경로로 수정해 실제 `init` 성공 확인.
+- 한국어 바탕화면 파일명을 PowerShell 5.1에서 일관되게 처리하기 위해 유니코드 문자 코드로 조립.
+- **실제 상대방 터널 ID/런타임 키로 `doctor`와 `run`을 호출한 성공 사례, ChatGPT 플러그인 생성 및 `pc_info` E2E 검증은 아직 없음.**
+- 바탕화면 TXT는 API 키가 **평문**이므로 사용자가 직접 파일 보안을 관리해야 함. 스크립트는 키를 콘솔에 출력하거나 추가 평문 설정 파일에 저장하지 않음.
+
 ## 확정된 배포 버전
 
 - 대상 저장소: https://github.com/limjunseo/chatgpt-local-pc-bridge
