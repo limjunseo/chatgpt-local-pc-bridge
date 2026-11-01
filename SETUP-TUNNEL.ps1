@@ -145,7 +145,16 @@ try {
     Ensure ($LASTEXITCODE -eq 0) 'Doctor failed: check ID, runtime key and Platform permission.'
     Info 'Doctor passed. Keep this window open to keep ChatGPT connected.'
     if ($FromDesktopConfig) {
-        Write-Warning 'The Desktop TXT contains a PLAINTEXT API KEY. Protect/remove it; restart through START-TUNNEL.cmd needs the config again.'
+        $autoScript = Join-Path $homeDir 'AUTOSTART-TUNNEL.ps1'
+        if (Test-Path -LiteralPath $autoScript -PathType Leaf) {
+            Info 'Optional Windows-login auto-start (explicit owner approval required).'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $autoScript -Action Enable
+            if ($LASTEXITCODE -ne 0) {
+                Info 'Windows-login auto-start is not enabled. Manual tunnel continues normally.'
+            }
+        } else {
+            Write-Warning 'Desktop TXT contains a PLAINTEXT API KEY. Protect or delete it.'
+        }
     }
     Info 'Next: ChatGPT Plugins > Custom MCP server > Tunnel > Authentication None.'
     & $clientFile run --profile $profileName
