@@ -54,7 +54,7 @@ if ($DryRun) {
 Ensure ($env:OS -eq 'Windows_NT') 'Requires Windows.'
 Ensure (-not ($InstallOnly -and $RunOnly)) 'Conflicting switches.'
 Ensure (Test-Path -LiteralPath $mcpFile) 'Install the local MCP with INSTALL.cmd first.'
-if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFile) -or -not (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared.exe')))) {
+if (-not $RunOnly -and (-not (Test-Path -LiteralPath $clientFile) -or -not (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared.exe')) -or -not (Test-Path -LiteralPath (Join-Path $homeDir 'cloudflared-manifest.json')))) {
     $headers = @{'Accept'='application/vnd.github+json';'User-Agent'='chatgpt-local-pc-bridge-installer'}
     $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/openai/tunnel-client/releases/latest' -Headers $headers
     Ensure (-not $release.draft -and -not $release.prerelease) 'Unstable release refused.'
@@ -104,8 +104,8 @@ if (-not $RunOnly -and ($InstallOnly -or -not (Test-Path -LiteralPath $clientFil
     [IO.File]::WriteAllText($launcherFile,$launcher,[Text.Encoding]::ASCII)
     Info ('Official tunnel client installed: ' + $clientFile)
     Info ('Later restart: ' + $launcherFile)
-    if ($InstallOnly) { Info 'Client-only install completed. Tunnel pairing remains separate.';exit 0 }
 }
+if ($InstallOnly) { Info 'Official tunnel-client bundle is present; existing active tunnel was not touched.';exit 0 }
 Ensure (Test-Path -LiteralPath $clientFile) 'Official tunnel-client executable missing.'
 $env:LOCAL_PC_ROOT = Join-Path $env:USERPROFILE 'ChatGPTLocalFiles'
 if (-not $RunOnly) {
