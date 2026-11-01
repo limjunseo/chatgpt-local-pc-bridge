@@ -1,38 +1,36 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-title ChatGPT Local Desktop Commander Setup
-rem Local stdio MCP setup. Does NOT enable Remote Desktop Commander.
-rem Verified target version matches the existing local environment (0.2.51).
-set "PACKAGE=@wonderwhy-er/desktop-commander@0.2.51"
-set "INSTALL_ROOT=%LOCALAPPDATA%\DesktopCommanderLocal"
-set "SERVER_JS=%INSTALL_ROOT%\node_modules\@wonderwhy-er\desktop-commander\dist\index.js"
+title ChatGPT Local PC Bridge - Setup
+rem Installer for OWN self-contained local MCP server. No third-party MCP packages.
+rem Requires owner approval. Does not connect accounts or enable persistence.
+set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
+set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
+set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
+set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/main/local-pc-mcp.cjs"
+set "EXPECTED_SHA256=5A13141F7615CC7C49659BC2BE70B149DFD7735EFF218ED9BAF661A676A313F7"
 if not "%~2"=="" goto BAD_ARGUMENT
 if /I "%~1"=="--help" goto HELP
 if /I "%~1"=="--dry-run" goto DRY_RUN
 if not "%~1"=="" goto BAD_ARGUMENT
 echo.
-echo ====================================================
-echo    ChatGPT LOCAL Desktop Commander - Windows Setup
-echo ====================================================
+echo ======================================================
+echo       ChatGPT Local PC Bridge - Windows Setup
+echo ======================================================
 echo.
-echo This installer:
-echo   1. Checks Node.js 22.12+ and npm/npx.
-echo   2. Offers Node.js LTS installation via winget if needed.
-echo   3. Installs local stdio Desktop Commander version 0.2.51.
-echo   4. Explains ChatGPT Desktop or Web Tunnel connection.
+echo No third-party MCP provider or npm packages are used.
+echo Installs our own small local stdio MCP tool, Node.js only.
+echo Tools: hostname, list, read and write text files.
+echo Restricted to: %WORK_ROOT%
+echo No arbitrary command execution, open ports, or auto-start.
+echo Installation does not authorize any ChatGPT account.
 echo.
-echo This does NOT connect or authenticate ChatGPT automatically.
-echo The local MCP can read, edit files and run commands with
-echo the current Windows user's rights when connected.
-echo No 3389 port forwarding, secret collection, or auto-start.
-echo.
-choice /C YN /N /M "PC owner authorizes local MCP installation? [Y/N]: "
+choice /C YN /N /M "PC owner approves this installation? [Y/N]: "
 if errorlevel 2 goto CANCELLED
 if not errorlevel 1 goto CANCELLED
 call :CHECK_NODE
 if not errorlevel 1 goto NODE_READY
 echo.
-echo Node.js 22.12+ not found. Node.js LTS is required.
+echo Node.js 22.12+ missing or outdated.
 where winget.exe >nul 2>&1
 if errorlevel 1 goto NO_WINGET
 choice /C YN /N /M "Install/upgrade official Node.js LTS via winget? [Y/N]: "
@@ -40,7 +38,7 @@ if errorlevel 2 goto CANCELLED
 if not errorlevel 1 goto CANCELLED
 winget install --id OpenJS.NodeJS.LTS --exact --source winget --accept-source-agreements --accept-package-agreements
 if errorlevel 1 (
-  echo Initial install was not successful; trying upgrade.
+  echo Node.js install failed. Trying winget upgrade...
   winget upgrade --id OpenJS.NodeJS.LTS --exact --source winget --accept-source-agreements --accept-package-agreements
   if errorlevel 1 goto NODE_INSTALL_FAILED
 )
@@ -49,56 +47,56 @@ if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Prog
 call :CHECK_NODE
 if errorlevel 1 goto NODE_RECHECK_FAILED
 :NODE_READY
-where npm.cmd >nul 2>&1
-if errorlevel 1 goto NO_NPM
-where npx.cmd >nul 2>&1
-if errorlevel 1 goto NO_NPX
+if not exist "%BRIDGE_HOME%" mkdir "%BRIDGE_HOME%"
+if errorlevel 1 goto FOLDER_FAILED
+if not exist "%WORK_ROOT%" mkdir "%WORK_ROOT%"
+if errorlevel 1 goto FOLDER_FAILED
+set "CURRENT_HASH="
+if exist "%BRIDGE_SCRIPT%" call :HASH_FILE "%BRIDGE_SCRIPT%"
+if /I "%CURRENT_HASH%"=="%EXPECTED_SHA256%" goto VERIFIED
+echo Downloading published bridge source from our GitHub...
+set "TEMPFILE=%BRIDGE_HOME%\local-pc-mcp.cjs.download"
+powershell.exe -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing -Uri '%DOWNLOAD_URL%' -OutFile '%TEMPFILE%' -ErrorAction Stop; exit 0 } catch { exit 1 }"
+if errorlevel 1 goto DOWNLOAD_FAILED
+set "CURRENT_HASH="
+call :HASH_FILE "%TEMPFILE%"
+if /I not "%CURRENT_HASH%"=="%EXPECTED_SHA256%" goto HASH_FAILED
+move /Y "%TEMPFILE%" "%BRIDGE_SCRIPT%" >nul
+if errorlevel 1 goto FOLDER_FAILED
+:VERIFIED
+node.exe --check "%BRIDGE_SCRIPT%"
+if errorlevel 1 goto NODE_CHECK_FAILED
 echo.
-echo Installing local Desktop Commander into:
-echo   %INSTALL_ROOT%
-echo Package: %PACKAGE%
-call npm.cmd install --prefix "%INSTALL_ROOT%" --no-audit --no-fund --save-exact "%PACKAGE%"
-if errorlevel 1 goto NPM_FAILED
-if not exist "%SERVER_JS%" goto SERVER_MISSING
+echo [SUCCESS] Own local MCP bridge installed and syntax-checked.
+echo [NOT CONNECTED] ChatGPT pairing still requires owner's approval.
 echo.
-echo [READY] Local Desktop Commander installed successfully.
-echo [NOT CONNECTED] ChatGPT account and tunnel still need setup.
+echo Workspace: %WORK_ROOT%
+echo Node command: node.exe
+echo Node argument: "%BRIDGE_SCRIPT%"
+echo Env LOCAL_PC_ROOT: "%WORK_ROOT%"
 echo.
-echo CHATGPT DESKTOP APP:
-echo   Settings - MCP servers - Add server - STDIO
-echo   Command: node.exe
-echo   Args: "%SERVER_JS%"
-echo   Save and Restart, then test a read-only file listing.
+echo ChatGPT DESKTOP: Settings / MCP servers / Add server / STDIO
+echo     Fill in the command, argument and LOCAL_PC_ROOT above.
+echo     Save and restart the local MCP host, then test pc_info.
+echo ChatGPT WEB: Set up the official OpenAI Secure MCP Tunnel.
+echo     Connect this same stdio command to the owner's tunnel.
+echo     Account permissions, tunnel ID and runtime key are separate.
+echo     Never reuse the supporter's tunnel or keys.
 echo.
-echo CHATGPT WEB (same architecture as this operator PC):
-echo   Requires OpenAI Secure MCP Tunnel, permitted Platform
-echo   tunnel ID, restricted runtime API key, and ChatGPT access.
-echo   Configure tunnel-client to run this local stdio command:
-echo   node.exe "%SERVER_JS%"
-echo   Do NOT use the public Remote Desktop Commander MCP URL.
+echo Documentation:
+echo https://github.com/limjunseo/chatgpt-local-pc-bridge
 echo.
-echo Opening official instructions and ChatGPT...
-start "" "https://learn.chatgpt.com/docs/extend/mcp"
-start "" "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels"
-start "" "https://chatgpt.com/plugins"
-echo.
-echo To stop remote access, stop the tunnel-client process or
-echo disable the local MCP server in ChatGPT. Do not enable
-echo unattended startup without separate owner approval.
-pause
+echo Press any key to finish. No service is running automatically.
+pause >nul
 exit /b 0
 :DRY_RUN
-echo [CHECK] Local prerequisites only - no installation or browser.
+echo [CHECK] Node.js and local bridge; no changes or network.
 call :CHECK_NODE
 if errorlevel 1 (echo [FAIL] Node.js 22.12+ required&exit /b 2)
-where npm.cmd >nul 2>&1
-if errorlevel 1 (echo [FAIL] npm.cmd missing&exit /b 3)
-where npx.cmd >nul 2>&1
-if errorlevel 1 (echo [FAIL] npx.cmd missing&exit /b 4)
+if exist "%BRIDGE_SCRIPT%" (echo [INFO] Bridge file already present) else (echo [INFO] Bridge not installed)
 where winget.exe >nul 2>&1
 if errorlevel 1 (echo [INFO] winget unavailable) else (echo [PASS] winget available)
-if exist "%SERVER_JS%" (echo [INFO] Local MCP already present) else (echo [INFO] Local MCP not yet installed in target directory)
-echo [PASS] Node, npm and npx ready. This does NOT test MCP or ChatGPT.
+echo [PASS] Environment check. ChatGPT NOT verified.
 exit /b 0
 :CHECK_NODE
 set "NODE_MAJOR="
@@ -120,45 +118,48 @@ if %NODE_MAJOR_NUM% GTR 22 exit /b 0
 if %NODE_MAJOR_NUM% LSS 22 exit /b 1
 if %NODE_MINOR_NUM% GEQ 12 exit /b 0
 exit /b 1
+:HASH_FILE
+for /f "delims=" %%H in ('powershell.exe -NoProfile -Command "(Get-FileHash -Algorithm SHA256 -LiteralPath '%~1').Hash"') do set "CURRENT_HASH=%%H"
+exit /b 0
 :NO_WINGET
-echo [ERROR] winget unavailable. Install official Node.js LTS manually.
+echo [ERROR] winget not found. Install official Node.js LTS manually.
 start "" "https://nodejs.org/en/download"
 pause
-exit /b 5
+exit /b 3
 :NODE_INSTALL_FAILED
-echo [ERROR] Node.js install/upgrade failed or requires reboot.
+echo [ERROR] Node install failed, or Windows needs restart.
+pause
+exit /b 4
+:NODE_RECHECK_FAILED
+echo [ERROR] Reopen CMD after installing Node.js, then retry.
+pause
+exit /b 5
+:FOLDER_FAILED
+echo [ERROR] Could not write to the current user's local folder.
 pause
 exit /b 6
-:NODE_RECHECK_FAILED
-echo [ERROR] Reopen CMD after Node.js installation and retry.
+:DOWNLOAD_FAILED
+echo [ERROR] Could not download from our GitHub repository.
 pause
 exit /b 7
-:NO_NPM
-echo [ERROR] npm.cmd not found. Repair Node.js installation.
+:HASH_FAILED
+echo [ERROR] SHA-256 does not match verified source. Refusing to run it.
+if exist "%TEMPFILE%" del /q "%TEMPFILE%" >nul 2>&1
 pause
 exit /b 8
-:NO_NPX
-echo [ERROR] npx.cmd not found. Repair Node.js installation.
+:NODE_CHECK_FAILED
+echo [ERROR] Source failed node.exe syntax check.
 pause
 exit /b 9
-:NPM_FAILED
-echo [ERROR] Local MCP npm install failed. Check the network or npm log.
-pause
-exit /b 10
-:SERVER_MISSING
-echo [ERROR] Installed package does not contain expected dist/index.js.
-pause
-exit /b 11
 :CANCELLED
-echo Installation cancelled by PC owner.
-exit /b 12
+echo PC owner declined installation.
+exit /b 10
 :BAD_ARGUMENT
 echo Usage: INSTALL.cmd [--dry-run ^| --help]
-exit /b 13
+exit /b 11
 :HELP
-echo INSTALL.cmd - local Desktop Commander for ChatGPT
-echo No args: install Node.js if needed, then LOCAL stdio MCP package.
-echo --dry-run: checks only. Does not download or connect accounts.
-echo Note: ChatGPT Desktop MCP setup and Web Tunnel authorization
-echo       still require actions by the account owner.
+echo ChatGPT Local PC Bridge - own stdio MCP, no Desktop Commander
+echo No args: consent, install Node LTS if needed, download hash-pinned JS.
+echo --dry-run: no changes. --help: display help.
+echo ChatGPT desktop local MCP or OpenAI Secure MCP Tunnel separately.
 exit /b 0
