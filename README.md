@@ -38,7 +38,7 @@ Windows CMD에서 환경 검사만 하려면 `INSTALL.cmd --dry-run`을 실행�
 상대방 PC의 **PowerShell**에서 다음 명령어를 실행할 수 있습니다 (실행 전 저장소의 설치 파일 내용을 확인하세요).
 
 ```powershell
-$p = Join-Path $env:TEMP 'ChatGPTLocalPC-Setup.cmd'; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/main/INSTALL.cmd' -OutFile $p; & $p
+$p = Join-Path $env:TEMP 'ChatGPTLocalPC-Setup.cmd'; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/7a65b37f7a9d0c9698284a5fb4104eb90689923a/INSTALL.cmd' -OutFile $p; & $p
 ```
 
 GitHub에서 다운로드한 CMD를 실행하므로 반드시 내용을 확인해야 합니다. MCP 서버는 설치기에서 **특정 GitHub 커밋과 SHA-256**으로 고정해, `main` 브랜치의 캐시나 변경으로 서버 버전이 어긋나지 않게 했습니다. 향후 버전 업데이트에는 설치기의 커밋 ID와 해시를 함께 변경해야 합니다.
