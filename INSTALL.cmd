@@ -5,6 +5,9 @@ rem Installer for OWN self-contained local MCP server. No third-party MCP packag
 rem Requires owner approval. Does not connect accounts or enable persistence.
 set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
 set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
+set "TUNNEL_SETUP=%BRIDGE_HOME%\SETUP-TUNNEL.ps1"
+set "TUNNEL_SETUP_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/19932024734ef674a6d07ff84975554b74457389/SETUP-TUNNEL.ps1"
+set "EXPECTED_TUNNEL_SHA256=3A147CC86CA275EEAD2780CB3DE2E81CC8A3DFD54452614E595FDBADE4CB97B9"
 set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
 set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/360eccfce6ebc6d6afbbe031d125f13cb7250e84/local-pc-mcp.cjs"
 set "EXPECTED_SHA256=29DF03940A61E692953464070CF1F4EC059FDEEFCA369AD49C58603D6B5FB0C2"
@@ -18,7 +21,8 @@ echo       ChatGPT Local PC Bridge - Windows Setup
 echo ======================================================
 echo.
 echo No third-party MCP provider or npm packages are used.
-echo Installs our own small local stdio MCP tool, Node.js only.
+echo Installs local stdio MCP and the official OpenAI tunnel-client.
+echo OpenAI tunnel-client is downloaded from official GitHub, verified by SHA-256.
 echo Tools: file info, search, exact edits, read/write, and process listing.
 echo File access restricted to: %WORK_ROOT%
 echo No arbitrary command execution, open ports, or auto-start.
@@ -66,8 +70,23 @@ if errorlevel 1 goto FOLDER_FAILED
 :VERIFIED
 node.exe --check "%BRIDGE_SCRIPT%"
 if errorlevel 1 goto NODE_CHECK_FAILED
+set "CURRENT_HASH="
+if exist "%TUNNEL_SETUP%" call :HASH_FILE "%TUNNEL_SETUP%"
+if /I "%CURRENT_HASH%"=="%EXPECTED_TUNNEL_SHA256%" goto TUNNEL_SETUP_VERIFIED
+echo Downloading reviewed official tunnel installer from our GitHub...
+set "TEMPFILE=%BRIDGE_HOME%\SETUP-TUNNEL.ps1.download"
+powershell.exe -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing -Uri '%TUNNEL_SETUP_URL%' -OutFile '%TEMPFILE%' -ErrorAction Stop; exit 0 } catch { exit 1 }"
+if errorlevel 1 goto DOWNLOAD_FAILED
+set "CURRENT_HASH="
+call :HASH_FILE "%TEMPFILE%"
+if /I not "%CURRENT_HASH%"=="%EXPECTED_TUNNEL_SHA256%" goto HASH_FAILED
+move /Y "%TEMPFILE%" "%TUNNEL_SETUP%" >nul
+if errorlevel 1 goto FOLDER_FAILED
+:TUNNEL_SETUP_VERIFIED
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%TUNNEL_SETUP%" -InstallOnly
+if errorlevel 1 goto TUNNEL_INSTALL_FAILED
 echo.
-echo [SUCCESS] Own local MCP bridge installed and syntax-checked.
+echo [SUCCESS] Own local MCP and official OpenAI tunnel-client installed and syntax-checked.
 echo [NOT CONNECTED] ChatGPT pairing still requires owner's approval.
 echo.
 echo Workspace: %WORK_ROOT%
@@ -78,10 +97,13 @@ echo.
 echo ChatGPT DESKTOP: Settings / MCP servers / Add server / STDIO
 echo     Fill in the command, argument and LOCAL_PC_ROOT above.
 echo     Save and restart the local MCP host, then test pc_info.
-echo ChatGPT WEB: Set up the official OpenAI Secure MCP Tunnel.
-echo     Connect this same stdio command to the owner's tunnel.
-echo     Account permissions, tunnel ID and runtime key are separate.
-echo     Never reuse the supporter's tunnel or keys.
+echo ChatGPT WEB: Tunnel client binary is installed, but no account is connected.
+echo     Put codex_setup file "codex_세팅연결.txt" on this Windows user's Desktop.
+echo     Content example: TunnelId:tunnel_XXXX,ApiKey:sk-XXXX
+echo     Then run the second command in CMD:
+echo     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%TUNNEL_SETUP%" -FromDesktopConfig
+echo     Keep the second CMD window open while the ChatGPT plugin is in use.
+echo     Runtime API keys must belong to the PC owner, not the helper.
 echo.
 echo Documentation:
 echo https://github.com/limjunseo/chatgpt-local-pc-bridge
@@ -94,6 +116,8 @@ echo [CHECK] Node.js and local bridge; no changes or network.
 call :CHECK_NODE
 if errorlevel 1 (echo [FAIL] Node.js 22.12+ required&exit /b 2)
 if exist "%BRIDGE_SCRIPT%" (echo [INFO] Bridge file already present) else (echo [INFO] Bridge not installed)
+if exist "%TUNNEL_SETUP%" (echo [INFO] Tunnel setup script present) else (echo [INFO] Tunnel setup script missing)
+if exist "%BRIDGE_HOME%\tunnel-client.exe" (echo [INFO] Tunnel client installed) else (echo [INFO] Tunnel client not installed)
 where winget.exe >nul 2>&1
 if errorlevel 1 (echo [INFO] winget unavailable) else (echo [PASS] winget available)
 echo [PASS] Environment check. ChatGPT NOT verified.
@@ -151,6 +175,11 @@ exit /b 8
 echo [ERROR] Source failed node.exe syntax check.
 pause
 exit /b 9
+:TUNNEL_INSTALL_FAILED
+echo [ERROR] OpenAI tunnel-client download, verification, or setup failed.
+echo See the error above; do not proceed to pairing.
+pause
+exit /b 12
 :CANCELLED
 echo PC owner declined installation.
 exit /b 10
@@ -159,7 +188,7 @@ echo Usage: INSTALL.cmd [--dry-run ^| --help]
 exit /b 11
 :HELP
 echo ChatGPT Local PC Bridge - own stdio MCP, no Desktop Commander
-echo No args: consent, install Node LTS if needed, download hash-pinned JS.
+echo No args: install Node LTS if needed, hash-pinned local MCP and official OpenAI tunnel-client.
 echo --dry-run: no changes. --help: display help.
-echo ChatGPT desktop local MCP or OpenAI Secure MCP Tunnel separately.
+echo Step 2: powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%%LOCALAPPDATA%%\ChatGPTLocalPCBridge\SETUP-TUNNEL.ps1" -FromDesktopConfig
 exit /b 0
