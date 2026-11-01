@@ -2,6 +2,42 @@
 
 이 가이드는 **상대방 본인의 Windows PC, 본인의 ChatGPT 계정 및 연결 권한**을 전제로 합니다. 로컬 PC Bridge는 외부 Desktop Commander MCP 제품을 설치하지 않습니다. 단, 현재 버전(v1.1.0)은 지정 폴더 파일 관리·검색 및 프로세스 **조회** 등 11개 기능만 제공하며, PowerShell/CMD 실행, 프로그램 설치, 프로세스 종료, PC 전체 파일 접근은 **지원하지 않습니다**.
 
+## 두 명령어로 설치하고 터널 실행하기 (Windows CMD, 권장)
+
+**먼저:** 이미 만든 터널의 `TunnelId`와 해당 터널에 **Tunnels Read + Use** 권한이 있는 **런타임 API 키**를 준비합니다. 이 파일은 키가 평문으로 저장되므로 신뢰할 수 있는 Windows 계정에서만 만들고, 공유·GitHub 업로드·화면 캡처를 피합니다.
+
+상대방 Windows 계정의 실제 바탕화면(OneDrive 바탕화면을 쓰는 경우 해당 위치)에 이름이 **`codex_세팅연결.txt`**인 텍스트 파일을 만듭니다. 내용은 **실제 값으로 교체**하세요. 두 값은 한 줄 또는 줄을 나눠도 됩니다.
+
+```text
+TunnelId:tunnel_0123456789abcdef0123456789abcdef,ApiKey:sk-여기에-실제-런타임키
+```
+
+참고: `tunel-ext`처럼 임의 축약값은 사용하지 마세요. Platform에서 복사한 **정확한 `tunnel_...` ID**가 필요합니다. 파일 이름 확장자가 중복되어 `.txt.txt`가 되지 않도록 확인합니다.
+
+**1번 — 자체 MCP와 OpenAI 공식 tunnel-client를 한 번에 설치** (상대방 PC의 CMD)
+
+```cmd
+curl.exe -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/0efb2f97c86f7aa27ee3dc071ff9be6641873afa/INSTALL.cmd" -o "%TEMP%\ChatGPTLocalPC-Setup.cmd" && call "%TEMP%\ChatGPTLocalPC-Setup.cmd"
+```
+
+설치 프로그램은 Node.js 검사·필요 시 설치 제안 → 자체 MCP 다운로드 및 SHA-256 검증 → 공식 GitHub의 Windows tunnel-client 다운로드 및 공식 SHA-256 검증을 수행합니다. 성공 시에도 **아직 터널에 로그인하거나 플러그인을 생성하지는 않습니다.** 이미 기존 자체 MCP만 설치한 사람도 같은 1번 명령을 다시 실행하면 공식 클라이언트를 추가 설치합니다.
+
+**2번 — 바탕화면 TXT로 터널 초기화·검사·실행** (같은 사용자 계정의 CMD)
+
+```cmd
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\ChatGPTLocalPCBridge\SETUP-TUNNEL.ps1" -FromDesktopConfig
+```
+
+2번 명령이 TXT에서 ID/키를 읽고 `tunnel-client init --force`, `doctor --explain`, `run` 순서대로 실행합니다. API 키 값은 콘솔에 출력하거나 별도 평문 설정 파일에 복사하지 않습니다. **연결 중에는 두 번째 창을 닫지 마세요.** 인증/권한 오류가 있으면 `doctor`에서 멈추므로 ChatGPT 플러그인 등록 전에 해당 오류를 확인하세요.
+
+**다음은 ChatGPT 설정 화면에서 수행:** 사용자 지정 MCP 서버 → 연결 **Tunnel** → 해당 터널 선택 → 인증 **인증 없음**(이 자체 MCP는 OAuth 미구현) → 플러그인 만들기 → **설치** → `pc_info` 호출로 실제 PC 이름 확인.
+
+**보안 주의:** `codex_세팅연결.txt`에는 API 키가 평문으로 남아 있습니다. 설정 완료 후 파일을 삭제하면 현재 실행 중인 터널 연결은 유지되지만, 다음에 터널을 다시 실행하려면 키를 다시 입력하거나 파일을 재생성해야 합니다. 파일을 지운 뒤에는 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\ChatGPTLocalPCBridge\SETUP-TUNNEL.ps1" -RunOnly` 명령으로 안전하게 키를 다시 입력할 수 있습니다. API 키를 **채팅에 붙여넣지 마세요.**
+
+**검증 범위:** Windows의 임시 분리 환경에서 1번 설치, 소스 해시, 공식 바이너리 버전, 2번의 가짜 키 형식 파싱과 MCP 프로필 초기화까지 검증했습니다. 실제 키로 `doctor`와 `run` 성공 및 ChatGPT 계정 도구 호출은 아직 사용자 PC에서 확인해야 합니다.
+
+---
+
 ## 정확한 설치·연결 순서
 
 **PC에 자체 MCP 설치 → Platform 터널 만들기 → 터널과 ChatGPT 워크스페이스 연결·권한 설정 → 상대방 PC에서 터널 클라이언트 설치/실행 → ChatGPT에서 사용자 지정 MCP 플러그인 생성(인증 없음) → 플러그인 설치 → 실제 도구 호출 테스트**.
