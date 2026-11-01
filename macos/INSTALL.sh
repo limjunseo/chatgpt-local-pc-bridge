@@ -23,7 +23,7 @@ case "$(uname -m)" in
   *) echo "[MAC INSTALL ERROR] Unsupported Mac architecture." >&2; exit 2 ;;
 esac
 fail() { printf '[MAC INSTALL ERROR] %s\n' "$1" >&2; exit 1; }
-OS_VERSION="$(/usr/bin/sw_vers -productVersion 2>/dev/null)" || fail "Cannot detect macOS version."
+OS_VERSION="$(sw_vers -productVersion 2>/dev/null)" || fail "Cannot detect macOS version."
 MAC_OS_MAJOR="${OS_VERSION%%.*}"
 [[ "$MAC_OS_MAJOR" =~ ^[0-9]+$ && "$MAC_OS_MAJOR" -ge 13 ]] || fail "Requires macOS 13 Ventura or newer. Detected: $OS_VERSION"
 note() { printf '[MAC INSTALL] %s\n' "$1"; }
