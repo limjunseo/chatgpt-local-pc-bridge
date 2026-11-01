@@ -47,7 +47,7 @@ GitHub에서 다운로드한 CMD를 실행하므로 반드시 내용을 확인�
 
 **ChatGPT 데스크톱 앱**: 지원되는 환경이라면 **Settings → MCP servers → Add server → STDIO**를 선택합니다. Command: `node.exe`, Arguments: `%LOCALAPPDATA%\ChatGPTLocalPCBridge\local-pc-mcp.cjs`의 **확장된 전체 경로**. 환경변수 `LOCAL_PC_ROOT`는 작업 폴더 전체 경로로 지정할 수 있으며 미지정 시 기본값이 사용됩니다. 앱/호스트를 재시작하고 `/mcp`에서 연결 상태를 확인합니다.
 
-**ChatGPT 웹**: 로컬 stdio 서버에 웹에서 직접 접속할 수 없으므로 **OpenAI Secure MCP Tunnel**이 별도로 필요합니다. 사용자의 Platform 조직에서 터널 권한을 부여하고, 사용자 본인의 ChatGPT 워크스페이스에서 터널을 선택해야 합니다. [웹 연결 절차](docs/CONNECT_WEB.md)를 확인하세요.
+**ChatGPT 웹**: 로컬 stdio 서버에 웹에서 직접 접속할 수 없으므로 **OpenAI Secure MCP Tunnel**이 별도로 필요합니다. **정확한 순서는 MCP 설치 → Platform 터널 생성 및 ChatGPT 워크스페이스 연결 → Windows `tunnel-client` 실행 → ChatGPT 사용자 지정 MCP 서버에서 연결 방식 `Tunnel` 및 인증 `인증 없음` → 플러그인 만들기 → 플러그인 설치 → `pc_info` 실제 호출**입니다. 이 자체 서버는 OAuth를 구현하지 않았으므로 OAuth Client ID/Secret을 입력할 필요가 없습니다. 이미 플러그인 만들기를 눌렀다면 새로 설치하지 말고 [웹 연결 절차의 복구 안내](docs/CONNECT_WEB.md#이미-플러그인으로-만들기를-눌렀다면)를 확인하세요.
 
 **중요:** 설치기는 ChatGPT 로그인·터널 생성·OAuth/역할 승인까지 자동 처리하지 않습니다. 네트워크 공개 RDP 포트(3389), 백그라운드 자동 시작을 설정하지 않습니다.
 
