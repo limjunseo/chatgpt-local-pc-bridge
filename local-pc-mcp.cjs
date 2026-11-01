@@ -58,17 +58,20 @@ function searchFiles(args) {
   const start = safePath(args.path ?? '.');
   const needle = args.pattern;
   if (typeof needle !== 'string' || needle.length === 0 || needle.length > 250) throw Error('Invalid search pattern');
-  const found = [], queue = [start]; let visited = 0;
-  while (queue.length && visited < MAX_SEARCH_VISITS && found.length < MAX_SEARCH_RESULTS) {
+  const found = [], queue = [start]; let visited = 0, directories = 0;
+  while (queue.length && visited + directories < MAX_SEARCH_VISITS && found.length < MAX_SEARCH_RESULTS) {
     const p = queue.shift();
     let st; try { st = fs.lstatSync(p); } catch { continue; }
     if (st.isSymbolicLink()) continue;
     if (st.isDirectory()) {
+      directories++;
       try { for (const name of fs.readdirSync(p)) queue.push(path.join(p,name)); } catch {}
     } else if (st.isFile()) {
       visited++;
-      if (args.searchContent === true && st.size <= 256 * 1024) {
-        try { if (fs.readFileSync(p,'utf8').toLowerCase().includes(needle.toLowerCase())) found.push(p); } catch {}
+      if (args.searchContent === true) {
+        if (st.size <= 256 * 1024) {
+          try { if (fs.readFileSync(p,'utf8').toLowerCase().includes(needle.toLowerCase())) found.push(p); } catch {}
+        }
       } else if (path.basename(p).toLowerCase().includes(needle.toLowerCase())) found.push(p);
     }
   }
@@ -175,7 +178,7 @@ io.on('line', line=>{
   try {
     switch (message.method) {
       case 'initialize':
-        response(message.id,{protocolVersion:'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'chatgpt-local-pc-bridge',version:'1.0.0'}});
+        response(message.id,{protocolVersion:'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'chatgpt-local-pc-bridge',version:'1.1.0'}});
         break;
       case 'ping': response(message.id,{}); break;
       case 'tools/list': response(message.id,{tools}); break;
