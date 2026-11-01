@@ -12,10 +12,10 @@
 
 ## 검증된 Windows 2단계 설치 (2026-11-01)
 
-- 1단계 CMD 설치 파일은 GitHub **고정 커밋** `0efb2f97c86f7aa27ee3dc071ff9be6641873afa`에서 받아 **CRLF 줄바꿈** 확인 후 실행함. `--dry-run`, `--help` 종료 코드 0.
+- 1단계 CMD 설치 파일은 GitHub **고정 커밋** `2bd05ed264a6c259f688567eb16e700c30e2dfe3`에서 받아 **CRLF 줄바꿈** 확인 후 실행함. `--dry-run`, `--help` 종료 코드 0.
 - 별도 Windows TEMP 환경변수로 분리해 1단계 실제 설치 성공(종료 코드 0). 자체 MCP 소스, `SETUP-TUNNEL.ps1`, `tunnel-client.exe`, `START-TUNNEL.cmd` 설치 확인.
-- 공식 `openai/tunnel-client` 릴리스 v0.0.19 Windows AMD64 ZIP 다운로드 및 GitHub 릴리스 `digest` SHA-256 확인, `tunnel-client.exe --version` 실행 성공.
-- 2단계 PowerShell 설치 스크립트는 GitHub **고정 커밋** `dc03acfb3497a3f6b4e706e8e2b4058c38261b21`, 다운로드 SHA-256 `7A3FE17D63EEB2575FBE5BED8A513FB0740539FE20B25A4ED54982BF7C7D5B57` 검증.
+- 공식 `openai/tunnel-client` 릴리스 v0.0.19 Windows AMD64 ZIP 다운로드 및 GitHub 릴리스 `digest` SHA-256 확인, `tunnel-client.exe --version` 실행 성공. ZIP의 `cloudflared.exe`와 `cloudflared-manifest.json`도 별도 시험에서 함께 설치됨을 확인.
+- 2단계 PowerShell 설치 스크립트는 GitHub **고정 커밋** `4ab0a7e22f8a0892eed22c273ecf9e29b9ece139`, 다운로드 SHA-256 `6DD28095BA7F0E51D649BF83EC4FDE8A11317AFF7781A1414651AD0D3FF1CA3C` 검증.
 - 가짜(실제 API가 아닌) Tunnel ID·키를 가진 테스트 TXT로 **파일 파싱, MCP 명령 사전검사, 터널 프로필 생성** 성공(종료 코드 0). 실제 키로 외부 Platform 인증은 시도하지 않음.
 - Windows 경로의 역슬래시·공백 때문에 `tunnel-client init`가 실패하는 문제를 발견하고, `node.exe` + 따옴표로 감싼 슬래시 경로로 수정해 실제 `init` 성공 확인.
 - 한국어 바탕화면 파일명을 PowerShell 5.1에서 일관되게 처리하기 위해 유니코드 문자 코드로 조립.
