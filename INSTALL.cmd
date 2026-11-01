@@ -6,8 +6,8 @@ rem Requires owner approval. Does not connect accounts or enable persistence.
 set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
 set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
 set "TUNNEL_SETUP=%BRIDGE_HOME%\SETUP-TUNNEL.ps1"
-set "TUNNEL_SETUP_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/19932024734ef674a6d07ff84975554b74457389/SETUP-TUNNEL.ps1"
-set "EXPECTED_TUNNEL_SHA256=3A147CC86CA275EEAD2780CB3DE2E81CC8A3DFD54452614E595FDBADE4CB97B9"
+set "TUNNEL_SETUP_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/dc03acfb3497a3f6b4e706e8e2b4058c38261b21/SETUP-TUNNEL.ps1"
+set "EXPECTED_TUNNEL_SHA256=7A3FE17D63EEB2575FBE5BED8A513FB0740539FE20B25A4ED54982BF7C7D5B57"
 set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
 set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/360eccfce6ebc6d6afbbe031d125f13cb7250e84/local-pc-mcp.cjs"
 set "EXPECTED_SHA256=29DF03940A61E692953464070CF1F4EC059FDEEFCA369AD49C58603D6B5FB0C2"
@@ -98,7 +98,7 @@ echo ChatGPT DESKTOP: Settings / MCP servers / Add server / STDIO
 echo     Fill in the command, argument and LOCAL_PC_ROOT above.
 echo     Save and restart the local MCP host, then test pc_info.
 echo ChatGPT WEB: Tunnel client binary is installed, but no account is connected.
-echo     Put codex_setup file "codex_세팅연결.txt" on this Windows user's Desktop.
+echo     Put the config TXT on the Windows Desktop (see GitHub guide for filename).
 echo     Content example: TunnelId:tunnel_XXXX,ApiKey:sk-XXXX
 echo     Then run the second command in CMD:
 echo     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%TUNNEL_SETUP%" -FromDesktopConfig
