@@ -19,6 +19,9 @@ $profilePath = Join-Path $env:APPDATA 'tunnel-client\chatgpt-local-pc.yaml'
 $profileName = 'chatgpt-local-pc'
 if ([string]::IsNullOrWhiteSpace($StartupDirectory)) {
   $StartupDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
+  if ([string]::IsNullOrWhiteSpace($StartupDirectory)) {
+    $StartupDirectory = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
+  }
 }
 $shortcutPath = Join-Path $StartupDirectory 'ChatGPT Local PC Bridge Tunnel.lnk'
 function Note([string]$s) { Write-Host ('[AUTO TUNNEL] ' + $s) }
