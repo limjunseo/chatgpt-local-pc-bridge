@@ -1,48 +1,48 @@
 # ChatGPT Local PC Bridge 검증 보고서 — 2026-11-01
 
-## 설계
+## 구성 및 목표
 
-- 이름: **ChatGPT Local PC Bridge**
-- 외부 Desktop Commander 패키지 설치: **없음**
-- npm 의존성: **0**
-- Node.js 표준 모듈만 사용: fs/path/os/readline
-- 공개 호스팅 MCP URL 사용: **없음**
-- 연결 방식: ChatGPT Desktop STDIO 또는 별도 OpenAI Secure MCP Tunnel
-- 기본 파일 범위: `%USERPROFILE%\ChatGPTLocalFiles`만 허용
-- 원격 임의 명령 실행: **지원하지 않음**
+- 자체 제작 로컬 STDIO MCP 서버: `local-pc-mcp.cjs`, **v1.1.0**, Node.js 내장 모듈만 사용
+- Desktop Commander 외부 패키지·호스팅 MCP: **사용하지 않음**
+- `list_processes`는 Windows 기본 `tasklist.exe`를 읽기 전용으로 호출
+- 등록 도구 수: **정확히 11개** (테스트에서 이름까지 검증)
+- 기본 작업 공간: `%USERPROFILE%\ChatGPTLocalFiles` (상대방 PC의 사용자 권한 내)
+- **임의 CMD/PowerShell 명령, 프로그램 설치, 프로세스 종료, PC 전체 파일 접근은 미지원**
+- ChatGPT 웹 사용 시 **별도 OpenAI Secure MCP Tunnel 및 대상 사용자 계정의 권한/인증 필요**
 
-## 이번에 실제 확인한 것
+## 확정된 배포 버전
 
-- Windows 11, Node.js **24.13.1** 환경의 로컬 소스 `node.exe --check`: 통과.
-- 로컬 stdio MCP JSON-RPC `initialize`, `tools/list`, `tools/call pc_info`, `tools/call read_text_file`: 정상 응답.
-- 상대 경로로 작업 폴더 밖에 있는 파일 읽기 요청: `isError=true` 및 거부.
-- GitHub 공개 소스 HTTP 다운로드: 성공.
-- 설치 파일에 명시된 서버 SHA-256: `5A13141F7615CC7C49659BC2BE70B149DFD7735EFF218ED9BAF661A676A313F7`.
-- `INSTALL.cmd --help`: 종료 0.
-- `INSTALL.cmd --dry-run`: 종료 0, 사전 점검만 수행.
-- 오타/추가 옵션: 종료 11.
-- 별도 TEMP 사용자 경로로 격리한 **실제 설치 테스트**: 동의 입력 → GitHub 다운로드 → SHA-256 확인 → `node --check` → 설치 완료, 종료 0.
-- 실제 설치된 파일 SHA-256: 기대값과 일치.
-- 작업 폴더 생성 확인.
+- 대상 저장소: https://github.com/limjunseo/chatgpt-local-pc-bridge
+- 실제 MCP 소스 고정 커밋: `360eccfce6ebc6d6afbbe031d125f13cb7250e84`
+- 해당 커밋의 `local-pc-mcp.cjs` **다운로드 파일** SHA-256:
+  `29DF03940A61E692953464070CF1F4EC059FDEEFCA369AD49C58603D6B5FB0C2`
+- `INSTALL.cmd`는 `main`이 아닌 **위 고정 커밋 URL**에서 MCP 소스를 내려받고 동일 SHA-256인지 확인
+- 로컬 편집본과 GitHub 다운로드본은 줄 내용이 동일하나, Windows 줄바꿈 차이로 **파일 자체 SHA-256은 서로 다를 수 있음**. 설치기의 기대값은 다운로드된 배포 파일 기준
+- GitHub `main` raw 주소에서 캐시된 구버전을 반환하는 경우가 실제 관찰돼 커밋 고정으로 개선함
 
-- 추가 회귀시험 `node tests/smoke.cjs`: **PASS** — 초기화, 도구 목록, PC 정보, 목록 조회, 읽기/쓰기, 명시적 덮어쓰기, 덮어쓰기 거부, 상대/절대 경로 탈출 차단, 임의 명령 도구 부재, 바이너리 차단, ping.
-- 설치기 해시 불일치 모의 테스트: 다운로드 후 **거절(종료 코드 8)**, 설치 대상 파일 미생성.
+## 이번에 실제 검증한 사항
 
-- 공개 GitHub의 `INSTALL.cmd`를 다시 HTTPS로 다운로드하고 별도 임시 Windows 사용자 경로에서 **두 번 연속 설치**: 모두 종료 0. 설치된 자체 소스 SHA-256 일치, Node 문법 검사 통과.
-- 배포된 `INSTALL.cmd`와 `local-pc-mcp.cjs` 정적 검사: 이전 Desktop Commander npm 패키지 설치/외부 MCP 호스트 사용 호출 **0건**.
-- 공개 저장소 실제 파일 목록과 저장소 PUBLIC 상태 확인. 이전 튜토리얼 저장소는 이름을 변경하고 PRIVATE 보관함으로 유지.
+- Windows/Node.js **24.13.1**에서 `node --check` 통과
+- 로컬 STDIO MCP `initialize`, `tools/list`, `ping` 통과
+- `tests/smoke.cjs` 실제 실행 **종료 코드 0**
+- 11개 도구 이름 일치, PC 정보/목록/파일 읽기·쓰기/텍스트 교체/폴더 생성/이동/파일 정보·내용 검색/작은 바이너리 읽기/프로세스 조회 테스트
+- 경로 이탈(절대·상대 경로) 거부, 기존 파일의 무승인 덮어쓰기 거부, 문자열 일치 수가 다른 편집 거부
+- 명령 실행 도구가 없는 상태임을 검증
+- 이전 설치기의 Node.js 검사, GitHub 다운로드, 해시 검증, 고의로 변경한 해시 거부(종료 코드 8), 원본 설치 후 문법 검사 성공을 확인
+- 파일 내용 검색의 큰 파일 처리 시 파일명 검색으로 잘못 돌아가는 동작을 수정하고, 탐색 디렉터리 개수도 제한하도록 개선
 
-## 아직 검증하지 않은 항목
+## 아직 미검증 / 미구현
 
-- Node 없는 Windows PC에서 `winget install/upgrade` 및 UAC/재부팅 대응.
-- 다른 Windows 사용자·OneDrive 리디렉션·조직 보안 정책의 설치.
-- 사용자의 ChatGPT Desktop 호스트 실제 STDIO 서버 등록/호출.
-- 사용자의 Platform 조직에서 Secure MCP Tunnel 생성, restricted runtime key, `doctor`, `run`.
-- 사용자 ChatGPT 웹 계정에서 실제 `pc_info` 도구 호출.
-- 허가된 폴더에 대한 장기 운영/다중 세션 및 권한 철회.
+- **현재 수정된 커밋 고정 설치기를 상대방의 새로운 Windows 사용자 환경에서 실제 실행하는 E2E**
+- Node.js가 없는 PC에서 `winget` 설치·업그레이드·UAC·재부팅
+- 다른 Windows 사용자 계정/관리형 조직 PC/보안 정책에서 실행
+- 실제 ChatGPT 데스크톱 STDIO 연결, 웹 OpenAI Secure MCP Tunnel의 `doctor/run`, 계정 승인 및 최종 도구 호출
+- 기존 Local Desktop Commander의 전체 파일·명령·프로세스 기능 동등성
+- 특수 경로, 링크·정션 및 동시 파일 접근에 대한 별도 보안 감사
 
 ## 판정
 
-**설치기와 로컬 MCP의 기본 기능은 검증됨.**
-**상대방 ChatGPT 계정 연결은 미완료.**
-모든 사용자가 한 번에 연결된다는 주장, 현재 컴퓨터의 외부 도구와 동일한 기능이라는 주장은 하지 않습니다.
+**제한된 자체 MCP 서버 및 주요 파일 도구: 테스트 통과.** 
+**ChatGPT 계정 연결 및 완전한 PC 제어: 미완료.**
+
+설치 파일 하나만으로 PC 전체 명령 실행이나 ChatGPT 계정 인증이 자동 완료된다고 설명하지 않습니다.
