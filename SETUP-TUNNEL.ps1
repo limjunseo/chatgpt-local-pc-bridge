@@ -2,7 +2,7 @@
 # Local PC Bridge: install official openai/tunnel-client for Windows.
 # No Desktop Commander package and no stored runtime API key.
 [CmdletBinding()]
-param([switch]$InstallOnly,[switch]$RunOnly,[switch]$DryRun,[string]$TunnelId)
+param([switch]$InstallOnly,[switch]$RunOnly,[switch]$DryRun,[switch]$FromDesktopConfig,[switch]$ValidateConfigOnly,[string]$ConfigPath,[string]$TunnelId)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $homeDir = Join-Path $env:LOCALAPPDATA 'ChatGPTLocalPCBridge'
@@ -10,8 +10,40 @@ $clientFile = Join-Path $homeDir 'tunnel-client.exe'
 $mcpFile = Join-Path $homeDir 'local-pc-mcp.cjs'
 $launcherFile = Join-Path $homeDir 'START-TUNNEL.cmd'
 $profileName = 'chatgpt-local-pc'
+# Desktop config is plaintext; never echo it or pass the runtime key in process arguments.
+$apiFromConfig = $null
+function ReadDesktopConfig {
+    if ([string]::IsNullOrWhiteSpace($script:ConfigPath)) {
+        $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+        $script:ConfigPath = Join-Path $desktop 'codex_세팅연결.txt'
+    }
+    Ensure (Test-Path -LiteralPath $script:ConfigPath -PathType Leaf) ('Desktop config file not found: ' + $script:ConfigPath)
+    $file = Get-Item -LiteralPath $script:ConfigPath -ErrorAction Stop
+    Ensure ($file.Length -le 8192) 'Desktop config exceeds 8 KiB; refusing to parse.'
+    $raw = Get-Content -LiteralPath $script:ConfigPath -Encoding UTF8 -Raw
+    $fields = @{}
+    $parts = @($raw -split '[,\r\n]+' | Where-Object { $_.Trim().Length -gt 0 })
+    foreach ($part in $parts) {
+        if ($part -match '^\s*(TunnelId|ApiKey)\s*:\s*(.*?)\s*$') {
+            $name = $Matches[1].ToLowerInvariant()
+            Ensure (-not $fields.ContainsKey($name)) ('Duplicate config field: ' + $name)
+            $fields[$name] = $Matches[2].Trim()
+        } else {
+            throw 'Invalid format. Use TunnelId:tunnel_...,ApiKey:sk-... (secrets not printed).'
+        }
+    }
+    Ensure ($fields.Count -eq 2 -and $fields.ContainsKey('tunnelid') -and $fields.ContainsKey('apikey')) 'Config requires exactly TunnelId and ApiKey.'
+    Ensure ($fields['tunnelid'] -match '^tunnel_[A-Za-z0-9_-]{8,}$') 'Invalid TunnelId; copy full tunnel_... ID from Platform.'
+    Ensure ($fields['apikey'].Length -ge 12 -and $fields['apikey'].Length -le 512 -and $fields['apikey'] -notmatch '\s') 'Invalid ApiKey; use runtime key with Tunnels Read+Use.'
+    $script:TunnelId = $fields['tunnelid']
+    $script:apiFromConfig = $fields['apikey']
+    $raw = $null
+    Info 'Desktop config parsed: tunnel ID found, runtime key present (not displayed).'
+}
 function Info([string]$message) { Write-Host ('[TUNNEL] ' + $message) }
 function Ensure([bool]$condition,[string]$message) { if (-not $condition) { throw $message } }
+if ($FromDesktopConfig -or $ValidateConfigOnly) { ReadDesktopConfig }
+if ($ValidateConfigOnly) { Info 'Config format valid; no connection attempted.'; exit 0 }
 if ($DryRun) {
     Info ('Local MCP found: ' + (Test-Path -LiteralPath $mcpFile))
     Info ('Official client found: ' + (Test-Path -LiteralPath $clientFile))
@@ -56,7 +88,7 @@ if (-not $RunOnly) {
     } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     $newline = [Environment]::NewLine
     $launcher = '@echo off' + $newline +
-       'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0SETUP-TUNNEL.ps1" -RunOnly' + $newline +
+       'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0SETUP-TUNNEL.ps1" -RunOnly -FromDesktopConfig' + $newline +
        'if errorlevel 1 pause' + $newline
     [IO.File]::WriteAllText($launcherFile,$launcher,[Text.Encoding]::ASCII)
     Info ('Official tunnel client installed: ' + $clientFile)
@@ -74,24 +106,33 @@ if (-not $RunOnly) {
     Ensure ($TunnelId -match '^tunnel_[A-Za-z0-9_-]{8,}$') 'Invalid Tunnel ID.'
     $node = (Get-Command node.exe -ErrorAction Stop).Source
     $cmd = '"' + $node + '" "' + $mcpFile + '"'
-    & $clientFile init --sample sample_mcp_stdio_local --profile $profileName --tunnel-id $TunnelId --mcp-command $cmd
+    & $clientFile init --force --sample sample_mcp_stdio_local --profile $profileName --tunnel-id $TunnelId --mcp-command $cmd
     Ensure ($LASTEXITCODE -eq 0) 'tunnel-client init failed.'
     Info 'Tunnel profile configured.'
 }
-Info 'Runtime API key is entered only in this terminal session and not saved.'
-$secret = Read-Host 'Runtime API key (hidden; blank to finish without connecting)' -AsSecureString
-if ($secret.Length -eq 0) { Info ('Run ' + $launcherFile + ' later.');exit 0 }
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
-try { $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
-finally {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-    Remove-Variable secret,ptr -ErrorAction SilentlyContinue
+if ($FromDesktopConfig) {
+    $env:CONTROL_PLANE_API_KEY = $apiFromConfig
+    $apiFromConfig = $null
+    Info 'Runtime key loaded from desktop file into process memory (not printed).'
+} else {
+    Info 'Runtime API key is entered only in this terminal session and not saved.'
+    $secret = Read-Host 'Runtime API key (hidden; blank to finish without connecting)' -AsSecureString
+    if ($secret.Length -eq 0) { Info ('Run ' + $launcherFile + ' later.');exit 0 }
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+    try { $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+        Remove-Variable secret,ptr -ErrorAction SilentlyContinue
+    }
 }
 try {
     Info 'Running official doctor connection checks.'
     & $clientFile doctor --profile $profileName --explain
     Ensure ($LASTEXITCODE -eq 0) 'Doctor failed: check ID, runtime key and Platform permission.'
     Info 'Doctor passed. Keep this window open to keep ChatGPT connected.'
+    if ($FromDesktopConfig) {
+        Write-Warning 'codex_세팅연결.txt contains a PLAINTEXT API KEY. Protect or remove the file. Restart through START-TUNNEL.cmd reads it again.'
+    }
     Info 'Next: ChatGPT Plugins > Custom MCP server > Tunnel > Authentication None.'
     & $clientFile run --profile $profileName
     Ensure ($LASTEXITCODE -eq 0) 'Tunnel client stopped with an error.'
