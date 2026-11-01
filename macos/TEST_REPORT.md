@@ -30,3 +30,27 @@
 ## 비밀·권한 경계
 
 Mac에서만 `~/Library/Application Support/ChatGPTLocalPCBridgeMac`, `~/Library/LaunchAgents/com.limjunseo.chatgpt-local-mac-bridge.tunnel.plist`, macOS Keychain 서비스 `ChatGPTLocalMacBridgeRuntimeKey`를 사용한다. 현재 사용자 명시적 승인 없이 자동 시작은 활성화하지 않으며, 다른 PC(Windows 포함)의 설치/키/터널 ID를 수정하지 않는다.
+
+
+## 검토보고서(2026-11-01) 실제 수정·재검증 반영
+
+근거: 사용자 로컬 폴더 `macos/검토보고서-20261101.md`. 해당 보고서 및 원본 재현 데이터는 변경하지 않았다.
+
+| 보고서 지적 | 변경 | 재검증 |
+|---|---|---|
+| [P1] LaunchAgent plist 경로 앞 LF | 실행 스크립트·출력·오류 로그 경로를 줄바꿈 없이 쓰고 PlistBuddy로 필드 재검증 | Python plistlib로 생성 plist 파싱, 경로 정확히 비교, 모의 로그인 등록 성공 |
+| [P1] TXT 마지막 개행 누락 및 중복·BOM·공백 | 공용 `macos/CONFIG.sh` 파서로 통합 | 한 줄 개행 없음/두 줄/CRLF/UTF-8 BOM/공백 및 중복·잘못된 인코딩 **10/10** |
+| [P1] 비 UTF-8·NUL 바이너리 편집으로 파일 손상 | `TextDecoder(fatal:true)`, NUL 차단, 편집 결과 2 MiB 제한 | 유효하지 않은 UTF-8, 바이너리, 과대 확장 모두 수정 없이 거절 |
+| [P1 조건부] 기존 하드링크를 통한 범위 탈출 | 안전 경로 확인 시 링크 수 2 이상 파일 거절, 내용 검색에서 제외 | 테스트용 외부 원본 불변 확인 |
+| [P2] 최소 macOS 미확인 | `sw_vers`로 버전 확인하고 13 미만이면 중단 | 가짜 macOS 12.7.6은 설치 전 중단, 앱 디렉터리 미생성 |
+| [P2] 자동 실행 등록 취소가 수동 run까지 취소 | `CONNECT.sh`에서 자동 실행 취소/실패 후 수동 실행 계속 | 모의 취소 시 init→doctor→run 순서 확인 |
+| [P2] TXT 삭제 후 수동 재연결 불가능 | Keychain과 기존 Mac 프로필이 있으면 `AUTOSTART.sh run` 경유 | TXT 삭제 후 재연결 모의 동작 확인 |
+| [추가] Bash -n 두 파일 검사 불완전 | CONNECT/AUTOSTART/CONFIG 각각 별도 `bash -n` | 세 스크립트 문법 통과 |
+| [추가] 기존 실행 파일 무결성 검사 누락 | 공식 릴리스 내부 파일별 SHA-256 검증 재사용, 불일치 시 안전하게 중단 | 기존 고장 파일은 실행/덮어쓰기 거절 |
+| [추가] 큰 파일 검색 누락 미보고 | 제외 건수 및 `limited:true` 표기 | 256 KiB 초과 파일이 검색에서 제외된 경우 확인 가능 |
+
+**결과:** 검토 보고서가 사용한 동일 방식의 Windows/Git Bash 모의 시험(최신 코드로 스냅샷 갱신)에서 연결·키체인·LaunchAgent 분기 **27/27 기대결과 일치**, 신규 MCP 보안 회귀시험 통과, 독립 TXT 파서 **10/10** 통과. 설치 13개 모의 분기에서 arm64·Intel 설치 성공, macOS 12/낡은 Node/손상된 다운로드/누락 아카이브/해시 불일치 기존 번들의 안전 차단 확인. UTF-16 인코딩은 **지원하지 않고 명확히 거절**하도록 변경했다.
+
+검증 위치: 사용자 폴더 `macos/반영검증-20261101/` 및 `macos/tests/review-regressions.cjs`, `macos/tests/config-regressions.sh`.
+
+**여전히 검증하지 않은 부분:** 실제 macOS에서 공식 터널 바이너리 시작, 키체인 보안 팝업과 계정 잠금·macOS LaunchAgent 로그온/절전 복귀, APFS의 링크/파일경로 경쟁 상태, ChatGPT 플러그인 실제 도구 호출과 재로그인 후 연결. 사용자에게 완료로 주장하지 않는다. 자체 MCP의 파일 경로 검사는 운영체제 수준의 강제 샌드박스가 아니다.
