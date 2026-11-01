@@ -6,8 +6,8 @@ rem Requires owner approval. Does not connect accounts or enable persistence.
 set "BRIDGE_HOME=%LOCALAPPDATA%\ChatGPTLocalPCBridge"
 set "BRIDGE_SCRIPT=%BRIDGE_HOME%\local-pc-mcp.cjs"
 set "WORK_ROOT=%USERPROFILE%\ChatGPTLocalFiles"
-set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/main/local-pc-mcp.cjs"
-set "EXPECTED_SHA256=AA12784686A972BE1B16B9C5B08AB9BB59C4992442B966D216BEDC4470068571"
+set "DOWNLOAD_URL=https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/360eccfce6ebc6d6afbbe031d125f13cb7250e84/local-pc-mcp.cjs"
+set "EXPECTED_SHA256=29DF03940A61E692953464070CF1F4EC059FDEEFCA369AD49C58603D6B5FB0C2"
 if not "%~2"=="" goto BAD_ARGUMENT
 if /I "%~1"=="--help" goto HELP
 if /I "%~1"=="--dry-run" goto DRY_RUN
