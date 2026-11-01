@@ -28,6 +28,10 @@
 - 추가 회귀시험 `node tests/smoke.cjs`: **PASS** — 초기화, 도구 목록, PC 정보, 목록 조회, 읽기/쓰기, 명시적 덮어쓰기, 덮어쓰기 거부, 상대/절대 경로 탈출 차단, 임의 명령 도구 부재, 바이너리 차단, ping.
 - 설치기 해시 불일치 모의 테스트: 다운로드 후 **거절(종료 코드 8)**, 설치 대상 파일 미생성.
 
+- 공개 GitHub의 `INSTALL.cmd`를 다시 HTTPS로 다운로드하고 별도 임시 Windows 사용자 경로에서 **두 번 연속 설치**: 모두 종료 0. 설치된 자체 소스 SHA-256 일치, Node 문법 검사 통과.
+- 배포된 `INSTALL.cmd`와 `local-pc-mcp.cjs` 정적 검사: 이전 Desktop Commander npm 패키지 설치/외부 MCP 호스트 사용 호출 **0건**.
+- 공개 저장소 실제 파일 목록과 저장소 PUBLIC 상태 확인. 이전 튜토리얼 저장소는 이름을 변경하고 PRIVATE 보관함으로 유지.
+
 ## 아직 검증하지 않은 항목
 
 - Node 없는 Windows PC에서 `winget install/upgrade` 및 UAC/재부팅 대응.
