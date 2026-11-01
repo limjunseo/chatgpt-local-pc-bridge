@@ -49,6 +49,8 @@ printf '[MAC TUNNEL] Configuring local MCP with your existing tunnel.\n'
   --mcp-command "\"$NODE\" \"$MCP\""
 printf '[MAC TUNNEL] Checking official doctor preflight.\n'
 "$BIN" doctor --profile "$PROFILE" --explain
+printf '%s\n' "$TUNNEL_ID" > "$APP_DIR/tunnel-id.txt"
+chmod 600 "$APP_DIR/tunnel-id.txt"
 printf '\n[MAC TUNNEL] Doctor passed. Login autostart is optional.\n'
 if [[ -f "$AUTOSTART" ]]; then
   printf 'Enable tunnel at each login to this Mac account? (y/N): '
