@@ -34,10 +34,10 @@ TunnelId:tunnel_0123456789abcdef0123456789abcdef,ApiKey:sk-여기에-실제-런�
 **1번 — Windows CMD에서 자체 MCP + 공식 OpenAI tunnel-client 설치**
 
 ```cmd
-curl.exe -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/0efb2f97c86f7aa27ee3dc071ff9be6641873afa/INSTALL.cmd" -o "%TEMP%\ChatGPTLocalPC-Setup.cmd" && call "%TEMP%\ChatGPTLocalPC-Setup.cmd"
+curl.exe -fL "https://raw.githubusercontent.com/limjunseo/chatgpt-local-pc-bridge/2bd05ed264a6c259f688567eb16e700c30e2dfe3/INSTALL.cmd" -o "%TEMP%\ChatGPTLocalPC-Setup.cmd" && call "%TEMP%\ChatGPTLocalPC-Setup.cmd"
 ```
 
-Node.js 22.12+ 여부 확인(없으면 winget으로 공식 Node.js 설치 제안), 자체 MCP의 커밋·SHA-256 확인, 공식 [openai/tunnel-client](https://github.com/openai/tunnel-client) 최신 안정판 Windows ZIP의 GitHub SHA-256 검증·실행 파일 검사까지 수행합니다. 이미 자체 MCP만 설치한 PC에서도 같은 명령으로 터널 클라이언트를 추가할 수 있습니다.
+Node.js 22.12+ 여부 확인(없으면 winget으로 공식 Node.js 설치 제안), 자체 MCP의 커밋·SHA-256 확인, 공식 [openai/tunnel-client](https://github.com/openai/tunnel-client) 최신 안정판 Windows ZIP의 GitHub SHA-256 검증·실행 파일 검사와 동봉된 `cloudflared.exe`·매니페스트 설치까지 수행합니다. 이미 자체 MCP만 설치한 PC에서도 같은 명령으로 터널 클라이언트를 추가할 수 있습니다.
 
 **2번 — 같은 PC/Windows 계정의 CMD에서 TXT 읽기 → init → doctor → run**
 
